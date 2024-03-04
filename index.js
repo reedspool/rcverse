@@ -4,6 +4,12 @@ import express from "express";
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+const redirectURL =
+	process.env.NODE_ENV === "production"
+		? process.env.REDIRECT_URL
+		: "http://localhost";
+
 const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
 const tokenEndpoint = "https://www.recurse.com/oauth/token";
@@ -16,7 +22,7 @@ const clientSecret = process.env.OAUTH_CLIENT_SECRET;
 console.log(clientId, clientSecret);
 
 const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
-	redirectURI: `http://localhost:${port}/myOauth2RedirectUri`,
+	redirectURI: `${redirectURL}:${port}/myOauth2RedirectUri`,
 });
 
 // TODO: Use Lucia to put this in user's session
@@ -73,11 +79,10 @@ app.get("/", async (req, res) => {
 	}
 	const body = `
 	<h1>Recurse OAuth Example with Oslo</h1>
-	<p>${
-		authenticated
+	<p>${authenticated
 			? 'You\'re logged in already - <a href="/logout">logout</a>'
 			: '<a href="/getAuthorizationUrl">Authorize</a>'
-	}
+		}
     </p>
 	`;
 	res.send(
@@ -139,14 +144,14 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 //
 // Final 404/5XX handlers
 //
-app.use(function (err, req, res, next) {
+app.use(function(err, req, res, next) {
 	console.error("5XX", err, req, next);
 	res.status(err?.status || 500);
 
 	res.send("5XX");
 });
 
-app.use(function (req, res) {
+app.use(function(req, res) {
 	res.status(404);
 	res.send("4XX");
 });
