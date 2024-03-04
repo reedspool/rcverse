@@ -8,7 +8,7 @@ const port = process.env.PORT || 3001;
 const redirectURL =
 	process.env.NODE_ENV === "production"
 		? process.env.REDIRECT_URL
-		: "http://localhost";
+		: `http://localhost:${port}`;
 
 const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
@@ -22,7 +22,7 @@ const clientSecret = process.env.OAUTH_CLIENT_SECRET;
 console.log(clientId, clientSecret);
 
 const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
-	redirectURI: `${redirectURL}:${port}/myOauth2RedirectUri`,
+	redirectURI: `${redirectURL}/myOauth2RedirectUri`,
 });
 
 // TODO: Use Lucia to put this in user's session
