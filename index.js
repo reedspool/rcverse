@@ -69,7 +69,8 @@ Adapter.prototype.updateSessionExpiration = async function (
 	this.sessions[sessionId].expiresAtMillis = expiresAtDate.getTime();
 };
 
-const lucia = new Lucia(new Adapter(), {
+const adapter = new Adapter();
+const lucia = new Lucia(adapter, {
 	sessionExpiresIn: new TimeSpan(2, "w"),
 	sessionCookie: {
 		name: "lucia-auth-example",
@@ -81,6 +82,9 @@ const lucia = new Lucia(new Adapter(), {
 			// https://stackoverflow.com/a/1188145
 			domain: process.env.NODE_ENV === "production" ? "example.com" : "",
 		},
+	},
+	getSessionAttributes: (attributes) => {
+		return { refresh_token: attributes.refresh_token };
 	},
 });
 
@@ -144,6 +148,7 @@ app.use(async (req, res, next) => {
 });
 
 app.get("/", async (req, res) => {
+	console.log("All sessions", adapter.sessions);
 	console.log("Session", res.locals.session);
 	let authenticated = false;
 	if (res.locals.session?.refresh_token) {
@@ -158,6 +163,9 @@ app.get("/", async (req, res) => {
 				},
 			);
 
+			// TODO: I'm not sure about this - how else could we check the OAuth session is currently active?
+			//       But either way, whenever we do refresh the access token, we also get a new refresh token
+			//       And how do we set the new refresh_token on the session? Likely we're not thinking about this correctly
 			res.locals.session.refresh_token = refresh_token;
 
 			authenticated = true;
@@ -230,19 +238,12 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 				authenticateWith: "request_body",
 			});
 
-		// This doesn't work! Don't store random stuff on sessions I guess!
 		const session = await lucia.createSession(nextUserId++, {
-			someArbitraryInfo: true,
+			// Note: This has to be returned in "getSessionAttributes" in new Lucia(...)
+			// TODO: We can set these things once, but can we ever set them again?
+			refresh_token,
 		});
 
-		// TODO: This doesn't work! Don't store random stuff on sessions, I guess!
-		// Or see "Define Session Attributes" here https://lucia-auth.com/basics/sessions
-		session.refresh_token = refresh_token;
-
-		console.log(
-			"New cookie",
-			lucia.createSessionCookie(session.id).serialize(),
-		);
 		res.appendHeader(
 			"Set-Cookie",
 			lucia.createSessionCookie(session.id).serialize(),
