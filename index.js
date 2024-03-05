@@ -1,5 +1,7 @@
+import { Lucia, verifyRequestOrigin, TimeSpan } from "lucia";
 import { OAuth2Client, generateState } from "oslo/oauth2";
 import { OAuth2RequestError } from "oslo/oauth2";
+import { Cookie } from "oslo/cookie";
 import express from "express";
 
 const app = express();
@@ -13,20 +15,70 @@ const tokenEndpoint = "https://www.recurse.com/oauth/token";
 const clientId = process.env.OAUTH_CLIENT_ID;
 const clientSecret = process.env.OAUTH_CLIENT_SECRET;
 
-console.log(clientId, clientSecret);
-
 const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
 	redirectURI: `http://localhost:${port}/myOauth2RedirectUri`,
 });
 
-// TODO: Use Lucia to put this in user's session
-const newUserSession = () => ({
-	state: null,
-	refresh_token: null,
-	access_token: null,
+// Ad-hoc in-memory adapter (no database) for Lucia
+
+function Adapter() {
+	this.sessions = {};
+}
+
+Adapter.prototype.deleteExpiredSessions = async function () {
+	const now = Date.now();
+	Object.entries(this.sessions).forEach(([id, session]) => {
+		if (session.expiresAtMillis > now) {
+			this.deleteSession(id);
+		}
+	});
+};
+
+Adapter.prototype.deleteSession = async function (sessionId) {
+	this.sessions[sessionId] = null;
+};
+Adapter.prototype.deleteUserSessions = async function (userId) {
+	this.getUserSessions(userId).forEach((session) => {
+		this.deleteSession(session.id);
+	});
+};
+
+Adapter.prototype.getSessionAndUser = async function (sessionId) {
+	const session = this.sessions[sessionId];
+	return [session, { userId: session?.userId }];
+};
+Adapter.prototype.getUserSessions = async function (userId) {
+	return Object.values(this.sessions).filter(
+		(session) => session.userId === userId,
+	);
+};
+
+Adapter.prototype.setSession = async function (session) {
+	this.sessions[session.id] = session;
+};
+Adapter.prototype.updateSessionExpiration = async function (
+	sessionId,
+	expiresAtDate,
+) {
+	this.sessions[sessionId].expiresAtMillis = expiresAtDate.getTime();
+};
+
+const lucia = new Lucia(new Adapter(), {
+	sessionExpiresIn: new TimeSpan(2, "w"),
+	sessionCookie: {
+		name: "lucia-auth-example",
+		attributes: {
+			// set to `true` when using HTTPS
+			secure: process.env.NODE_ENV === "production",
+			sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+			// TODO real domain required
+			// https://stackoverflow.com/a/1188145
+			domain: process.env.NODE_ENV === "production" ? "example.com" : "",
+		},
+	},
 });
 
-let userSession = newUserSession();
+let nextUserId = 0;
 
 const page = ({ body, title }) => `
 <!DOCTYPE html>
@@ -42,22 +94,65 @@ const page = ({ body, title }) => `
 </html>
 `;
 
+app.use((req, res, next) => {
+	if (req.method === "GET") {
+		return next();
+	}
+	const originHeader = req.headers.origin ?? null;
+	// NOTE: You may need to use `X-Forwarded-Host` instead
+	const hostHeader = req.headers.host ?? null;
+	if (
+		!originHeader ||
+		!hostHeader ||
+		!verifyRequestOrigin(originHeader, [hostHeader])
+	) {
+		return res.status(403).end();
+	}
+});
+
+app.use(async (req, res, next) => {
+	const sessionId = lucia.readSessionCookie(req.headers.cookie ?? "");
+	console.log("req.headers.cookie", req.headers.cookie);
+	if (!sessionId) {
+		res.locals.user = null;
+		res.locals.session = null;
+		return next();
+	}
+
+	const { session, user } = await lucia.validateSession(sessionId);
+	if (session && session.fresh) {
+		res.appendHeader(
+			"Set-Cookie",
+			lucia.createSessionCookie(session.id).serialize(),
+		);
+	}
+	if (!session) {
+		res.appendHeader(
+			"Set-Cookie",
+			lucia.createBlankSessionCookie().serialize(),
+		);
+	}
+	res.locals.user = user;
+	res.locals.session = session;
+	return next();
+});
+
 app.get("/", async (req, res) => {
+	console.log("Session", res.locals.session);
 	let authenticated = false;
-	if (userSession.refresh_token) {
+	if (res.locals.session?.refresh_token) {
 		try {
 			// Again the oslo docs are wrong, or at least inspecific.
 			// Source don't lie, though! https://github.com/pilcrowOnPaper/oslo/blob/main/src/oauth2/index.ts#L76
 			const { access_token, refresh_token } = await client.refreshAccessToken(
-				userSession.refresh_token,
+				res.locals.session?.refresh_token,
 				{
 					credentials: clientSecret,
 					authenticateWith: "request_body",
 				},
 			);
 
-			userSession.access_token = access_token;
-			userSession.refresh_token = refresh_token;
+			res.locals.session.refresh_token = refresh_token;
 
 			authenticated = true;
 		} catch (e) {
@@ -89,15 +184,20 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/logout", async (req, res) => {
-	userSession = newUserSession();
+	lucia.invalidateSession(res.locals.session?.id);
 
 	res.redirect("/");
 });
 
 app.get("/getAuthorizationUrl", async (req, res) => {
-	userSession.state = generateState();
+	const state = generateState();
+	res.appendHeader(
+		"Set-Cookie",
+		new Cookie("lucia-example-oauth-state", state).serialize(),
+	);
+
 	const url = await client.createAuthorizationURL({
-		state: userSession.state,
+		state,
 		scope: ["user:email"],
 	});
 	res.redirect(url);
@@ -106,8 +206,14 @@ app.get("/getAuthorizationUrl", async (req, res) => {
 app.get("/myOauth2RedirectUri", async (req, res) => {
 	const { state, code } = req.query;
 
-	if (!userSession.state || !state || userSession.state !== state) {
+	const cookieState = req.headers.cookie.match(
+		/lucia-example-oauth-state=(.*)&?/,
+	)?.[1];
+	console.log("cookie", req.headers.cookie, cookieState);
+
+	if (!cookieState || !state || cookieState !== state) {
 		// TODO: Don't crash the server!
+		console.error("State didn't match\n", cookieState, "\n", state);
 		throw new Error("State didn't match");
 	}
 
@@ -119,8 +225,23 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 				authenticateWith: "request_body",
 			});
 
-		userSession.access_token = access_token;
-		userSession.refresh_token = refresh_token;
+		// This doesn't work! Don't store random stuff on sessions I guess!
+		const session = await lucia.createSession(nextUserId++, {
+			someArbitraryInfo: true,
+		});
+
+		// TODO: This doesn't work! Don't store random stuff on sessions, I guess!
+		// Or see "Define Session Attributes" here https://lucia-auth.com/basics/sessions
+		session.refresh_token = refresh_token;
+
+		console.log(
+			"New cookie",
+			lucia.createSessionCookie(session.id).serialize(),
+		);
+		res.appendHeader(
+			"Set-Cookie",
+			lucia.createSessionCookie(session.id).serialize(),
+		);
 
 		res.redirect("/");
 		return;
@@ -161,3 +282,9 @@ process.on("SIGINT", () => {
 		process.exit(0);
 	});
 });
+// Typescript recommendation from https://lucia-auth.com/getting-started/
+// declare module "lucia" {
+// 	interface Register {
+// 		Lucia: typeof lucia;
+// 	}
+// }
