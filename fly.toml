@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for recurse-oauth on 2024-03-04T17:55:39-05:00
+# fly.toml app configuration file generated for recurse-oauth-reed on 2024-03-05T17:26:40-08:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'recurse-oauth'
+app = 'recurse-oauth-reed'
 primary_region = 'ewr'
 
 [build]
@@ -11,7 +11,7 @@ primary_region = 'ewr'
 [http_service]
   internal_port = 3001
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']

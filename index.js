@@ -3,14 +3,20 @@ import { OAuth2Client, generateState } from "oslo/oauth2";
 import { OAuth2RequestError } from "oslo/oauth2";
 import { Cookie } from "oslo/cookie";
 import express from "express";
+import { NeonHTTPAdapter } from "@lucia-auth/adapter-postgresql";
+import { neon } from "@neondatabase/serverless";
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-const redirectURL =
+const baseDomain =
 	process.env.NODE_ENV === "production"
-		? process.env.REDIRECT_URL
-		: `http://localhost:${port}`;
+		? `${process.env.FLY_APP_NAME}.fly.dev`
+		: `localhost:${port}`;
+const baseURL =
+	process.env.NODE_ENV === "production"
+		? `https://${baseDomain}`
+		: `http://${baseDomain}`;
 
 const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
@@ -20,56 +26,19 @@ const tokenEndpoint = "https://www.recurse.com/oauth/token";
 // From https://www.recurse.com/settings/apps
 const clientId = process.env.OAUTH_CLIENT_ID;
 const clientSecret = process.env.OAUTH_CLIENT_SECRET;
+const postgresConnection = process.env.POSTGRES_CONNECTION;
 
 const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
-	redirectURI: `${redirectURL}/myOauth2RedirectUri`,
+	redirectURI: `${baseURL}/myOauth2RedirectUri`,
 });
 
-// Ad-hoc in-memory adapter (no database) for Lucia
+const sql = neon(postgresConnection);
 
-function Adapter() {
-	this.sessions = {};
-}
+const adapter = new NeonHTTPAdapter(sql, {
+	user: "auth_user",
+	session: "user_session",
+});
 
-Adapter.prototype.deleteExpiredSessions = async function () {
-	const now = Date.now();
-	Object.entries(this.sessions).forEach(([id, session]) => {
-		if (session.expiresAtMillis > now) {
-			this.deleteSession(id);
-		}
-	});
-};
-
-Adapter.prototype.deleteSession = async function (sessionId) {
-	this.sessions[sessionId] = null;
-};
-Adapter.prototype.deleteUserSessions = async function (userId) {
-	this.getUserSessions(userId).forEach((session) => {
-		this.deleteSession(session.id);
-	});
-};
-
-Adapter.prototype.getSessionAndUser = async function (sessionId) {
-	const session = this.sessions[sessionId];
-	return [session, { userId: session?.userId }];
-};
-Adapter.prototype.getUserSessions = async function (userId) {
-	return Object.values(this.sessions).filter(
-		(session) => session.userId === userId,
-	);
-};
-
-Adapter.prototype.setSession = async function (session) {
-	this.sessions[session.id] = session;
-};
-Adapter.prototype.updateSessionExpiration = async function (
-	sessionId,
-	expiresAtDate,
-) {
-	this.sessions[sessionId].expiresAtMillis = expiresAtDate.getTime();
-};
-
-const adapter = new Adapter();
 const lucia = new Lucia(adapter, {
 	sessionExpiresIn: new TimeSpan(2, "w"),
 	sessionCookie: {
@@ -77,10 +46,9 @@ const lucia = new Lucia(adapter, {
 		attributes: {
 			// set to `true` when using HTTPS
 			secure: process.env.NODE_ENV === "production",
-			sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-			// TODO real domain required
+			sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
 			// https://stackoverflow.com/a/1188145
-			domain: process.env.NODE_ENV === "production" ? "example.com" : "",
+			domain: process.env.NODE_ENV === "production" ? baseDomain : "",
 		},
 	},
 	getSessionAttributes: (attributes) => {
@@ -163,10 +131,10 @@ app.get("/", async (req, res) => {
 				},
 			);
 
-			// TODO: I'm not sure about this - how else could we check the OAuth session is currently active?
-			//       But either way, whenever we do refresh the access token, we also get a new refresh token
-			//       And how do we set the new refresh_token on the session? Likely we're not thinking about this correctly
-			res.locals.session.refresh_token = refresh_token;
+			await sql("update user_session set refresh_token = $1 where id = $2", [
+				refresh_token,
+				res.locals.session?.id,
+			]);
 
 			authenticated = true;
 		} catch (e) {
@@ -174,10 +142,17 @@ app.get("/", async (req, res) => {
 				// see https://www.rfc-editor.org/rfc/rfc6749#section-5.2
 				const { request, message, description } = e;
 
-				throw e;
+				if (message === "invalid_grant") {
+					console.log("The following error is a totally normal invalid grant");
+				}
 			}
-			// unknown error
-			throw e;
+
+			console.error("Invalidating old session due to error", e);
+			await lucia.invalidateSession(res.locals.session?.id);
+			res.appendHeader(
+				"Set-Cookie",
+				lucia.createBlankSessionCookie().serialize(),
+			);
 		}
 	}
 	const body = `
@@ -238,7 +213,16 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 				authenticateWith: "request_body",
 			});
 
-		const session = await lucia.createSession(nextUserId++, {
+		// TODO Why do we even have a user table for this app? We want to use Recurse API's
+		//      idea of a user. But we can't get that user ID until after a successful login
+		//      so instead every time we create a new session we're just going to create a new
+		//      user? There's no cleanup even. We should also be deleting every user when a
+		//      session expires, but we're not yet. But even if we attempted to delete every
+		//      user with no session, then we'd still probably have leaks. So instead we want a
+		//      cleanup cron job
+		const userId = `${Date.now()}.${Math.floor(Math.random() * 10000)}`;
+		await sql(`insert into auth_user values ($1)`, [userId]);
+		const session = await lucia.createSession(userId, {
 			// Note: This has to be returned in "getSessionAttributes" in new Lucia(...)
 			// TODO: We can set these things once, but can we ever set them again?
 			refresh_token,
@@ -249,17 +233,24 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 			lucia.createSessionCookie(session.id).serialize(),
 		);
 
+		// Also update the local copy of the session since the middleware might not run?
+		// TODO Try removing this and see if it still works
+		res.locals.session = session;
 		res.redirect("/");
 		return;
 	} catch (e) {
 		if (e instanceof OAuth2RequestError) {
 			// see https://www.rfc-editor.org/rfc/rfc6749#section-5.2
 			const { request, message, description } = e;
-
-			throw e;
 		}
 		// unknown error
-		throw e;
+		console.error("Invalidating new session due to error", e);
+		await lucia.invalidateSession(res.locals.session?.id);
+		res.appendHeader(
+			"Set-Cookie",
+			lucia.createBlankSessionCookie().serialize(),
+		);
+		res.redirect("/");
 	}
 });
 
