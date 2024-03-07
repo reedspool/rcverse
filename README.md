@@ -1,6 +1,6 @@
 # RCVerse Oauth
 
-Following [Lucia Getting Started in Express tutorial](https://lucia-auth.com/getting-started/express)
+Forked from [Recurse OAuth example](https://github.com/reedspool/recurse-oauth-example-node-express)
 
 Node >=20 required (or see notes about Oslo installation for Node <20 [here](https://oslo.js.org))
 

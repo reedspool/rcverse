@@ -56,8 +56,6 @@ const lucia = new Lucia(adapter, {
 	},
 });
 
-let nextUserId = 0;
-
 const page = ({ body, title }) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -116,8 +114,6 @@ app.use(async (req, res, next) => {
 });
 
 app.get("/", async (req, res) => {
-	console.log("All sessions", adapter.sessions);
-	console.log("Session", res.locals.session);
 	let authenticated = false;
 	if (res.locals.session?.refresh_token) {
 		try {
@@ -181,7 +177,7 @@ app.get("/getAuthorizationUrl", async (req, res) => {
 	const state = generateState();
 	res.appendHeader(
 		"Set-Cookie",
-		new Cookie("lucia-example-oauth-state", state).serialize(),
+		new Cookie("rc-verse-login-oauth-state", state).serialize(),
 	);
 
 	const url = await client.createAuthorizationURL({
@@ -195,7 +191,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 	const { state, code } = req.query;
 
 	const cookieState = req.headers.cookie.match(
-		/lucia-example-oauth-state=(.*)&?/,
+		/rc-verse-login-oauth-state=(.*)&?/,
 	)?.[1];
 	console.log("cookie", req.headers.cookie, cookieState);
 
@@ -257,14 +253,14 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 //
 // Final 404/5XX handlers
 //
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
 	console.error("5XX", err, req, next);
 	res.status(err?.status || 500);
 
 	res.send("5XX");
 });
 
-app.use(function(req, res) {
+app.use(function (req, res) {
 	res.status(404);
 	res.send("4XX");
 });
