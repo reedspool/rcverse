@@ -9,6 +9,89 @@ import { neon } from "@neondatabase/serverless";
 const app = express();
 const port = process.env.PORT || 3001;
 
+const zoomRooms = [
+	{
+		href: "https://recurse.com/zoom/aegis",
+		name: "Aegis",
+	},
+	{
+		href: "https://recurse.com/zoom/arca",
+		name: "Arca",
+	},
+	{
+		href: "https://recurse.com/zoom/couches",
+		name: "Couches",
+	},
+	{
+		href: "https://recurse.com/zoom/edos",
+		name: "Edos",
+	},
+	{
+		href: "https://recurse.com/zoom/faculty_area",
+		name: "Faculty area",
+	},
+	{
+		href: "https://recurse.com/zoom/faculty_lounge",
+		name: "Faculty lounge",
+	},
+	{
+		href: "https://recurse.com/zoom/genera",
+		name: "Genera",
+	},
+	{
+		href: "https://recurse.com/zoom/kitchen",
+		name: "Kitchen",
+	},
+	{
+		href: "https://recurse.com/zoom/lawson",
+		name: "Lawson",
+	},
+	{
+		href: "https://recurse.com/zoom/midori",
+		name: "Midori",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_1",
+		name: "Pairing station 1",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_2",
+		name: "Pairing station 2",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_3",
+		name: "Pairing station 3",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_4",
+		name: "Pairing station 4",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_5",
+		name: "Pairing station 5",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_6",
+		name: "Pairing station 6",
+	},
+	{
+		href: "https://recurse.com/zoom/pairing_station_7",
+		name: "Pairing station 7",
+	},
+	{
+		href: "https://recurse.com/zoom/pomodoro_room",
+		name: "Pomodoro room",
+	},
+	{
+		href: "https://recurse.com/zoom/presentation_space",
+		name: "Presentation space",
+	},
+	{
+		href: "https://recurse.com/zoom/verve",
+		name: "Verve",
+	},
+];
+
 const baseDomain =
 	process.env.NODE_ENV === "production"
 		? `${process.env.FLY_APP_NAME}.fly.dev`
@@ -151,14 +234,44 @@ app.get("/", async (req, res) => {
 			);
 		}
 	}
-	const body = `
-	<h1>Recurse OAuth Example with Oslo</h1>
-	<p>${authenticated
-			? 'You\'re logged in already - <a href="/logout">logout</a>'
-			: '<a href="/getAuthorizationUrl">Authorize</a>'
-		}
-    </p>
-	`;
+	let body = `<h1>Recurse OAuth Example with Oslo</h1>`;
+
+	if (authenticated) {
+		body += `
+
+	<dl>
+      <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
+
+      <dd>
+        A virtual map of the RC space, where you can join video chat rooms using
+        Zoom.
+      </dd>
+      ${zoomRooms
+				.map(
+					({ href, name }) => `
+    <dt>
+      <a
+            href="${href}"
+            target="_blank"
+            rel="noopener noreferrer"
+            >${name}</a
+          >
+    </dt>
+		<dd>Nobody's here yet</dd>
+    `,
+				)
+				.join("")}
+
+	</dl>
+
+	<p>You\'re logged in! - <a href="/logout">logout</a></p>
+		`;
+	} else {
+		body += `
+			<p><a href="/getAuthorizationUrl">Login</a></p>
+		`;
+	}
+
 	res.send(
 		page({
 			title: "Homepage",
