@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for rc-verse-oauth on 2024-03-07T08:29:01-08:00
+# fly.toml app configuration file generated for rcverse on 2024-03-08T01:02:02-05:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'rc-verse-oauth'
+app = 'rcverse'
 primary_region = 'ewr'
 
 [build]

@@ -6,6 +6,9 @@ import express from "express";
 import { NeonHTTPAdapter } from "@lucia-auth/adapter-postgresql";
 import { neon } from "@neondatabase/serverless";
 import { connect } from "./actioncable.js";
+import EventEmitter from "node:events";
+
+const emitter = new EventEmitter();
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -90,6 +93,10 @@ const zoomRooms = [
 ];
 
 const zoomRoomNames = zoomRooms.map(({ name }) => name);
+const zoomRoomsByName = {};
+zoomRooms.forEach(({ name, ...rest }) => {
+	zoomRoomsByName[name] = { name, ...rest };
+});
 
 const baseDomain =
 	process.env.NODE_ENV === "production"
@@ -135,12 +142,13 @@ connect(actionCableAppId, actionCableAppSecret, (entity) => {
 			roomNameToParticipantPersonNames[zoom_room_name] = [];
 		}
 
-		console.log(`${person_name} enterred ${zoom_room_name}`);
 		roomNameToParticipantPersonNames[zoom_room_name].push(person_name);
 		participantPersonNamesToEntity[person_name] = {
 			zoom_room_name,
 			image_path,
 		};
+		console.log(`${person_name} enterred ${zoom_room_name}`);
+		emitter.emit("room-change", person_name, "enterred", zoom_room_name);
 	} else {
 		if (!participantPersonNamesToEntity[person_name]?.zoom_room_name) {
 			// Ignore, nothing to update, they're still not in a zoom room
@@ -149,7 +157,6 @@ connect(actionCableAppId, actionCableAppSecret, (entity) => {
 		const { zoom_room_name: previous } =
 			participantPersonNamesToEntity[person_name];
 
-		console.log(`${person_name} left ${previous}`);
 		participantPersonNamesToEntity[person_name] = {
 			zoom_room_name,
 			image_path,
@@ -158,6 +165,9 @@ connect(actionCableAppId, actionCableAppSecret, (entity) => {
 			roomNameToParticipantPersonNames[previous].filter(
 				(name) => name !== person_name,
 			);
+
+		console.log(`${person_name} departed ${previous}`);
+		emitter.emit("room-change", person_name, "departed", previous);
 	}
 });
 
@@ -230,6 +240,10 @@ const page = ({ body, title }) => `
   </head>
   <body>
     ${body}
+
+	<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+	<script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
+
   </body>
 </html>
 `;
@@ -276,6 +290,38 @@ app.use(async (req, res, next) => {
 	return next();
 });
 
+const Room = ({ href, name }) => `
+		<div class="room ${
+			roomNameToParticipantPersonNames[name]?.length > 0
+				? "room--non-empty"
+				: ""
+		}">
+          <dt>
+            ${name} - <a
+                  href="${href}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Join</a
+                >
+          </dt>
+          ${
+						roomNameToParticipantPersonNames[name]?.length > 0
+							? roomNameToParticipantPersonNames[name]
+									.map(
+										(name) =>
+											`<dd class="room__participants">
+									<img
+										class="face-marker"
+										src=${participantPersonNamesToEntity[name].image_path}
+										title="${name}">
+								</dd>`,
+									)
+									.join("&nbsp;")
+							: ``
+					}
+		</div>
+    `;
+
 app.get("/", async (req, res) => {
 	let authenticated = false;
 	if (res.locals.session?.refresh_token) {
@@ -314,12 +360,13 @@ app.get("/", async (req, res) => {
 			);
 		}
 	}
-	let body = `<h1>Recurse OAuth Example with Oslo</h1>`;
+	let body = `<h1>RCVerse</h1>`;
+	body += `<h2>Whatever you make it</h2>`;
 
 	if (authenticated) {
 		body += `
 
-	<dl class="room-list">
+	<dl class="room-list" hx-ext="sse" sse-connect="/sse">
       <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
 
       <dd>
@@ -328,34 +375,11 @@ app.get("/", async (req, res) => {
       </dd>
       ${zoomRooms
 				.map(
-					({ href, name }) => `
-		<div class="room ${
-			roomNameToParticipantPersonNames[name]?.length > 0
-				? "room--non-empty"
-				: ""
-		}">
-    <dt>
-      ${name} - <a
-            href="${href}"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Join</a
-          >
-    </dt>
-${
-	roomNameToParticipantPersonNames[name]?.length > 0
-		? roomNameToParticipantPersonNames[name]
-				.map(
-					(name) =>
-						`<dd class="room__participants"><img class="face-marker" src=${participantPersonNamesToEntity[name].image_path} title="${name}"></dd>`,
-				)
-				.join("&nbsp;")
-		: ``
-}
-
-</div>
-
-    `,
+					({ name, ...rest }) =>
+						`<div  sse-swap="room-update-${name}">${Room({
+							name,
+							...rest,
+						})}</div>`,
 				)
 				.join("")}
 
@@ -375,6 +399,36 @@ ${
 			body,
 		}),
 	);
+});
+
+app.get("/sse", async function (req, res) {
+	console.log("Got /sse");
+	res.set({
+		"Cache-Control": "no-cache",
+		"Content-Type": "text/event-stream",
+		Connection: "keep-alive",
+	});
+	res.flushHeaders();
+
+	// Tell the client to retry every 10 seconds if connectivity is lost
+	res.write("retry: 10000\n\n");
+
+	const listener = (person_name, action, zoom_room_name) => {
+		console.log("Sending ", person_name, action, zoom_room_name);
+		res.write(`event:room-update-${zoom_room_name}\n`);
+		res.write(
+			`data: ${Room(zoomRoomsByName[zoom_room_name]).replaceAll("\n", "")}\n\n`,
+		);
+	};
+	// TODO: For some reason this code stops the server from exiting clearly on Control-C (Signal Interrupt)
+	//       Maybe we can listen for the event of SIG INT and manually call res.end on every res that still has an event emitter?
+
+	emitter.on("room-change", listener);
+	// If client closes connection, stop sending events
+	res.on("close", () => {
+		emitter.off("room-change", listener);
+		res.end();
+	});
 });
 
 app.get("/logout", async (req, res) => {
