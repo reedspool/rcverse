@@ -5,6 +5,7 @@ import { Cookie } from "oslo/cookie";
 import express from "express";
 import { NeonHTTPAdapter } from "@lucia-auth/adapter-postgresql";
 import { neon } from "@neondatabase/serverless";
+import { connect } from "./actioncable.js";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -43,40 +44,36 @@ const zoomRooms = [
 		name: "Kitchen",
 	},
 	{
-		href: "https://recurse.com/zoom/lawson",
-		name: "Lawson",
-	},
-	{
 		href: "https://recurse.com/zoom/midori",
 		name: "Midori",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_1",
-		name: "Pairing station 1",
+		name: "Pairing Station 1",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_2",
-		name: "Pairing station 2",
+		name: "Pairing Station 2",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_3",
-		name: "Pairing station 3",
+		name: "Pairing Station 3",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_4",
-		name: "Pairing station 4",
+		name: "Pairing Station 4",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_5",
-		name: "Pairing station 5",
+		name: "Pairing Station 5",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_6",
-		name: "Pairing station 6",
+		name: "Pairing Station 6",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_7",
-		name: "Pairing station 7",
+		name: "Pairing Station 7",
 	},
 	{
 		href: "https://recurse.com/zoom/pomodoro_room",
@@ -91,6 +88,8 @@ const zoomRooms = [
 		name: "Verve",
 	},
 ];
+
+const zoomRoomNames = zoomRooms.map(({ name }) => name);
 
 const baseDomain =
 	process.env.NODE_ENV === "production"
@@ -110,6 +109,57 @@ const tokenEndpoint = "https://www.recurse.com/oauth/token";
 const clientId = process.env.OAUTH_CLIENT_ID;
 const clientSecret = process.env.OAUTH_CLIENT_SECRET;
 const postgresConnection = process.env.POSTGRES_CONNECTION;
+const actionCableAppId = process.env.ACTION_CABLE_APP_ID;
+const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
+
+const roomNameToParticipantPersonNames = {};
+const participantPersonNamesToEntity = {};
+connect(actionCableAppId, actionCableAppSecret, (entity) => {
+	const { zoom_room_name, person_name, image_path } = entity;
+	if (zoom_room_name !== null && !zoomRoomNames.includes(zoom_room_name)) {
+		// TODO don't kill the server but be loud about this confusion in the future
+		console.error(entity);
+		throw new Error(`Surprising zoom room name '${zoom_room_name}'`);
+	}
+
+	// zoom_room is a string means we're adding a person to that room
+	if (zoom_room_name) {
+		if (
+			participantPersonNamesToEntity[person_name]?.zoom_room_name ===
+			zoom_room_name
+		) {
+			// Ignore, we already have this person in the right zoom room
+			return;
+		}
+		if (!roomNameToParticipantPersonNames[zoom_room_name]) {
+			roomNameToParticipantPersonNames[zoom_room_name] = [];
+		}
+
+		console.log(`${person_name} enterred ${zoom_room_name}`);
+		roomNameToParticipantPersonNames[zoom_room_name].push(person_name);
+		participantPersonNamesToEntity[person_name] = {
+			zoom_room_name,
+			image_path,
+		};
+	} else {
+		if (!participantPersonNamesToEntity[person_name]?.zoom_room_name) {
+			// Ignore, nothing to update, they're still not in a zoom room
+			return;
+		}
+		const { zoom_room_name: previous } =
+			participantPersonNamesToEntity[person_name];
+
+		console.log(`${person_name} left ${previous}`);
+		participantPersonNamesToEntity[person_name] = {
+			zoom_room_name,
+			image_path,
+		};
+		roomNameToParticipantPersonNames[previous] =
+			roomNameToParticipantPersonNames[previous].filter(
+				(name) => name !== person_name,
+			);
+	}
+});
 
 const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
 	redirectURI: `${baseURL}/myOauth2RedirectUri`,
@@ -146,6 +196,37 @@ const page = ({ body, title }) => `
     <title>${title}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/png" href="favicon.png" />
+	<style type="text/css" media="screen">
+  	  .face-marker {
+        width: 2em;
+        aspect-ratio: 1;
+        border-radius: 99999px;
+        border: 4px solid forestgreen;
+      }
+
+      .empty-room-memo {
+        font-size: 0.8em;
+        font-style: italic;
+      }
+
+      .room-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4em;
+      }
+
+      .room:hover {
+        background-color: rgba(0,0,0,0.1);
+      }
+
+      .room__participants {
+        padding-top: 0.6em;
+      }
+
+      .room {
+        padding: 0.4em;
+      }
+	</style>
   </head>
   <body>
     ${body}
@@ -171,7 +252,6 @@ app.use((req, res, next) => {
 
 app.use(async (req, res, next) => {
 	const sessionId = lucia.readSessionCookie(req.headers.cookie ?? "");
-	console.log("req.headers.cookie", req.headers.cookie);
 	if (!sessionId) {
 		res.locals.user = null;
 		res.locals.session = null;
@@ -239,7 +319,7 @@ app.get("/", async (req, res) => {
 	if (authenticated) {
 		body += `
 
-	<dl>
+	<dl class="room-list">
       <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
 
       <dd>
@@ -249,15 +329,32 @@ app.get("/", async (req, res) => {
       ${zoomRooms
 				.map(
 					({ href, name }) => `
+		<div class="room ${
+			roomNameToParticipantPersonNames[name]?.length > 0
+				? "room--non-empty"
+				: ""
+		}">
     <dt>
-      <a
+      ${name} - <a
             href="${href}"
             target="_blank"
             rel="noopener noreferrer"
-            >${name}</a
+            >Join</a
           >
     </dt>
-		<dd>Nobody's here yet</dd>
+${
+	roomNameToParticipantPersonNames[name]?.length > 0
+		? roomNameToParticipantPersonNames[name]
+				.map(
+					(name) =>
+						`<dd class="room__participants"><img class="face-marker" src=${participantPersonNamesToEntity[name].image_path} title="${name}"></dd>`,
+				)
+				.join("&nbsp;")
+		: ``
+}
+
+</div>
+
     `,
 				)
 				.join("")}

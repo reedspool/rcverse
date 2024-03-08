@@ -45,3 +45,7 @@ CREATE TABLE user_session (
 
 )
 ```
+
+## RCTogether API (ActionCable)
+
+Go to https://recurse.rctogether.com/apps and make a new application, then plug in your App ID and App secret into `ACTION_CABLE_APP_ID` and `ACTION_CABLE_APP_SECRET` in your `config.env`.
