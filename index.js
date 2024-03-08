@@ -220,6 +220,7 @@ const page = ({ body, title }) => `
         aspect-ratio: 1;
         border-radius: 99999px;
         border: 4px solid forestgreen;
+		margin-left: -1.4em;
       }
 
       .empty-room-memo {
