@@ -32,11 +32,11 @@ const zoomRooms = [
 	},
 	{
 		href: "https://recurse.com/zoom/faculty_area",
-		name: "Faculty area",
+		name: "Faculty Area",
 	},
 	{
 		href: "https://recurse.com/zoom/faculty_lounge",
-		name: "Faculty lounge",
+		name: "Faculty Lounge",
 	},
 	{
 		href: "https://recurse.com/zoom/genera",
@@ -71,11 +71,11 @@ const zoomRooms = [
 		name: "Pairing Station 5",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_6",
+		href: "https://recurse.rctogether.com/zoom_meetings/35980/join",
 		name: "Pairing Station 6",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_7",
+		href: "https://recurse.rctogether.com/zoom_meetings/35983/join",
 		name: "Pairing Station 7",
 	},
 	{
@@ -125,8 +125,8 @@ connect(actionCableAppId, actionCableAppSecret, (entity) => {
 	const { zoom_room_name, person_name, image_path } = entity;
 	if (zoom_room_name !== null && !zoomRoomNames.includes(zoom_room_name)) {
 		// TODO don't kill the server but be loud about this confusion in the future
-		console.error(entity);
-		throw new Error(`Surprising zoom room name '${zoom_room_name}'`);
+		console.error(`Surprising zoom room name '${zoom_room_name}'`);
+		return;
 	}
 
 	// zoom_room is a string means we're adding a person to that room
@@ -299,24 +299,26 @@ const Room = ({ href, name }) => `
           <dt>
             ${name} - <a
                   href="${href}"
-                  target="_blank"
+				  target="_blank"
                   rel="noopener noreferrer"
                   >Join</a
                 >
           </dt>
           ${
 						roomNameToParticipantPersonNames[name]?.length > 0
-							? roomNameToParticipantPersonNames[name]
+							? `<dd class="room__participants"> ${roomNameToParticipantPersonNames[
+									name
+							  ]
 									.map(
 										(name) =>
-											`<dd class="room__participants">
+											`
 									<img
 										class="face-marker"
 										src=${participantPersonNamesToEntity[name].image_path}
 										title="${name}">
-								</dd>`,
+								`,
 									)
-									.join("&nbsp;")
+									.join("&nbsp;")}</dd>`
 							: ``
 					}
 		</div>
@@ -367,22 +369,17 @@ app.get("/", async (req, res) => {
 		body += `
 
 	<dl class="room-list" hx-ext="sse" sse-connect="/sse">
-      <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
-
-      <dd>
-        A virtual map of the RC space, where you can join video chat rooms using
-        Zoom.
-      </dd>
       ${zoomRooms
 				.map(
 					({ name, ...rest }) =>
-						`<div  sse-swap="room-update-${name}">${Room({
+						`<div sse-swap="room-update-${name}">${Room({
 							name,
 							...rest,
 						})}</div>`,
 				)
 				.join("")}
 
+      <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
 	</dl>
 
 	<p>You\'re logged in! - <a href="/logout">logout</a></p>
@@ -395,7 +392,7 @@ app.get("/", async (req, res) => {
 
 	res.send(
 		page({
-			title: "Homepage",
+			title: "RCVerse",
 			body,
 		}),
 	);
@@ -526,7 +523,7 @@ app.use(function (err, req, res, next) {
 
 app.use(function (req, res) {
 	res.status(404);
-	res.send("4XX");
+	res.send("404");
 });
 const listener = app.listen(port, () => {
 	console.log(`Server is available at http://localhost:${port}`);
