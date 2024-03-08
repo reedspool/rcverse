@@ -23,32 +23,28 @@ const zoomRooms = [
 		name: "Arca",
 	},
 	{
-		href: "https://recurse.com/zoom/couches",
-		name: "Couches",
-	},
-	{
 		href: "https://recurse.com/zoom/edos",
 		name: "Edos",
-	},
-	{
-		href: "https://recurse.com/zoom/faculty_area",
-		name: "Faculty Area",
-	},
-	{
-		href: "https://recurse.com/zoom/faculty_lounge",
-		name: "Faculty Lounge",
 	},
 	{
 		href: "https://recurse.com/zoom/genera",
 		name: "Genera",
 	},
 	{
-		href: "https://recurse.com/zoom/kitchen",
-		name: "Kitchen",
-	},
-	{
 		href: "https://recurse.com/zoom/midori",
 		name: "Midori",
+	},
+	{
+		href: "https://recurse.com/zoom/verve",
+		name: "Verve",
+	},
+	{
+		href: "https://recurse.com/zoom/couches",
+		name: "Couches",
+	},
+	{
+		href: "https://recurse.com/zoom/kitchen",
+		name: "Kitchen",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_1",
@@ -87,8 +83,12 @@ const zoomRooms = [
 		name: "Presentation space",
 	},
 	{
-		href: "https://recurse.com/zoom/verve",
-		name: "Verve",
+		href: "https://recurse.com/zoom/faculty_area",
+		name: "Faculty Area",
+	},
+	{
+		href: "https://recurse.com/zoom/faculty_lounge",
+		name: "Faculty Lounge",
 	},
 ];
 
@@ -121,6 +121,14 @@ const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 
 const roomNameToParticipantPersonNames = {};
 const participantPersonNamesToEntity = {};
+
+// TODO
+//  The action cable API sometimes updates with a zoom room participant count,
+//  and we observed once that virtual RC showed one person who was definitely in
+//  a zoom room did not appear in virtual RC (or this app) as in that zoom room.
+//  Question: Does that participant count also reflect that person NOT in the room?
+//     I'm guessing it will not show the person in the room, because we also observed
+//     the little bubble in Virutal RC didn't show that person as in the room
 connect(actionCableAppId, actionCableAppSecret, (entity) => {
 	const { zoom_room_name, person_name, image_path } = entity;
 	if (zoom_room_name !== null && !zoomRoomNames.includes(zoom_room_name)) {
@@ -324,6 +332,13 @@ const Room = ({ href, name }) => `
 		</div>
     `;
 
+// TODO I don't know where to write this
+// Client could lose SSE connection for a long time, like if they close their laptop
+// HTMX is going to try to reconnect immediately, but it doesn't do anything
+// to refresh the whole page to get a real understanding of the current world,
+//  instead it will just start updating from the next stream evenst, and it could
+// be completley wrong about where everyone is currenlty
+
 app.get("/", async (req, res) => {
 	let authenticated = false;
 	if (res.locals.session?.refresh_token) {
@@ -391,6 +406,9 @@ app.get("/", async (req, res) => {
 	}
 
 	res.send(
+		// TODO: Cache an authenticated version and an unauthenticated version
+		//       and only invalidate that cache when a zoom room update occurs
+		// ACTUALLY we can cache each room too! And only invalidate them when a room change occurs
 		page({
 			title: "RCVerse",
 			body,
