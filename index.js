@@ -3,7 +3,8 @@ import { OAuth2Client, generateState } from "oslo/oauth2";
 import { OAuth2RequestError } from "oslo/oauth2";
 import { Cookie } from "oslo/cookie";
 import express from "express";
-import { NeonHTTPAdapter } from "@lucia-auth/adapter-postgresql";
+import pg from "pg";
+import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { neon } from "@neondatabase/serverless";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
@@ -183,9 +184,14 @@ const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
 	redirectURI: `${baseURL}/myOauth2RedirectUri`,
 });
 
-const sql = neon(postgresConnection);
+// const sql = (postgresConnection);
+const sql = new pg.Pool({
+	host: 'localhost',
+	user: 'pb',
+	database: 'rcverse',
+});
 
-const adapter = new NeonHTTPAdapter(sql, {
+const adapter = new NodePostgresAdapter(sql, {
 	user: "auth_user",
 	session: "user_session",
 });
@@ -299,11 +305,10 @@ app.use(async (req, res, next) => {
 });
 
 const Room = ({ href, name }) => `
-		<div class="room ${
-			roomNameToParticipantPersonNames[name]?.length > 0
-				? "room--non-empty"
-				: ""
-		}">
+		<div class="room ${roomNameToParticipantPersonNames[name]?.length > 0
+		? "room--non-empty"
+		: ""
+	}">
           <dt>
             ${name} - <a
                   href="${href}"
@@ -312,23 +317,22 @@ const Room = ({ href, name }) => `
                   >Join</a
                 >
           </dt>
-          ${
-						roomNameToParticipantPersonNames[name]?.length > 0
-							? `<dd class="room__participants"> ${roomNameToParticipantPersonNames[
-									name
-							  ]
-									.map(
-										(name) =>
-											`
+          ${roomNameToParticipantPersonNames[name]?.length > 0
+		? `<dd class="room__participants"> ${roomNameToParticipantPersonNames[
+			name
+		]
+			.map(
+				(name) =>
+					`
 									<img
 										class="face-marker"
 										src=${participantPersonNamesToEntity[name].image_path}
 										title="${name}">
 								`,
-									)
-									.join("&nbsp;")}</dd>`
-							: ``
-					}
+			)
+			.join("&nbsp;")}</dd>`
+		: ``
+	}
 		</div>
     `;
 
@@ -353,7 +357,7 @@ app.get("/", async (req, res) => {
 				},
 			);
 
-			await sql("update user_session set refresh_token = $1 where id = $2", [
+			await sql.query("update user_session set refresh_token = $1 where id = $2", [
 				refresh_token,
 				res.locals.session?.id,
 			]);
@@ -416,7 +420,7 @@ app.get("/", async (req, res) => {
 	);
 });
 
-app.get("/sse", async function (req, res) {
+app.get("/sse", async function(req, res) {
 	console.log("Got /sse");
 	res.set({
 		"Cache-Control": "no-cache",
@@ -496,7 +500,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 		//      user with no session, then we'd still probably have leaks. So instead we want a
 		//      cleanup cron job
 		const userId = `${Date.now()}.${Math.floor(Math.random() * 10000)}`;
-		await sql(`insert into auth_user values ($1)`, [userId]);
+		await sql.query(`insert into auth_user values ($1)`, [userId]);
 		const session = await lucia.createSession(userId, {
 			// Note: This has to be returned in "getSessionAttributes" in new Lucia(...)
 			// TODO: We can set these things once, but can we ever set them again?
@@ -532,14 +536,14 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 //
 // Final 404/5XX handlers
 //
-app.use(function (err, req, res, next) {
+app.use(function(err, req, res, next) {
 	console.error("5XX", err, req, next);
 	res.status(err?.status || 500);
 
 	res.send("5XX");
 });
 
-app.use(function (req, res) {
+app.use(function(req, res) {
 	res.status(404);
 	res.send("404");
 });
