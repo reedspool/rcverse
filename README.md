@@ -12,9 +12,7 @@ To get your Client ID and Client Secret, go to <https://recurse.com/settings/app
 
 Then make a copy of `config.env.template` named `config.env` and fill in the secrets there. For PostgreSQL, see the Neon section below.
 
-```sh
-node --env-file=config.env index.js
-```
+Once you've done the above steps run the server locally with `npm start`.
 
 ## Fly.io Deployment
 
@@ -23,6 +21,8 @@ node --env-file=config.env index.js
 When you update those values, you'll need to run `fly deploy` to use the new versions.
 
 ## Neon deployment
+
+Technically you can use any PostgreSQL database, not just Neon, but this project is using Neon.
 
 Sign up for a new account with Neon. Make a new database. Save the PostgreSQL connection string into the `config.env` variable `POSTGRES_CONNECTION` as well as in the Secrets section of your Fly App.
 

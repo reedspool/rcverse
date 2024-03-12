@@ -3,8 +3,8 @@ import { OAuth2Client, generateState } from "oslo/oauth2";
 import { OAuth2RequestError } from "oslo/oauth2";
 import { Cookie } from "oslo/cookie";
 import express from "express";
-import { NeonHTTPAdapter } from "@lucia-auth/adapter-postgresql";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
+import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
 import { Page, RootBody, Room, Participants } from "./html.js";
@@ -184,9 +184,11 @@ const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
 	redirectURI: `${baseURL}/myOauth2RedirectUri`,
 });
 
-const sql = neon(postgresConnection);
+const sql = new pg.Pool({
+	connectionString: postgresConnection,
+});
 
-const adapter = new NeonHTTPAdapter(sql, {
+const adapter = new NodePostgresAdapter(sql, {
 	user: "auth_user",
 	session: "user_session",
 });
@@ -271,10 +273,11 @@ app.get("/", async (req, res) => {
 				},
 			);
 
-			await sql("update user_session set refresh_token = $1 where id = $2", [
-				refresh_token,
-				res.locals.session?.id,
-			]);
+
+			await sql.query(
+				"update user_session set refresh_token = $1 where id = $2",
+				[refresh_token, res.locals.session?.id],
+			);
 
 			authenticated = true;
 		} catch (e) {
@@ -407,7 +410,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 		//      user with no session, then we'd still probably have leaks. So instead we want a
 		//      cleanup cron job
 		const userId = `${Date.now()}.${Math.floor(Math.random() * 10000)}`;
-		await sql(`insert into auth_user values ($1)`, [userId]);
+		await sql.query(`insert into auth_user values ($1)`, [userId]);
 		const session = await lucia.createSession(userId, {
 			// Note: This has to be returned in "getSessionAttributes" in new Lucia(...)
 			// TODO: We can set these things once, but can we ever set them again?
