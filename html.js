@@ -34,7 +34,7 @@ export const Page = ({ body, title }) => `
         background-color: rgba(0,0,0,0.1);
       }
 
-      .room__participants {
+      .room__details {
         padding-top: 0.6em;
       }
 
@@ -57,6 +57,7 @@ export const RootBody = ({
   zoomRooms,
   roomNameToParticipantPersonNames,
   participantPersonNamesToEntity,
+  roomMessages,
 }) => {
   let body = `<h1>RCVerse</h1>`;
   body += `<h2>Whatever you make it</h2>`;
@@ -83,6 +84,10 @@ export const RootBody = ({
                           })),
                         })
                       : ``,
+                  notes: Notes({
+                    name: name,
+                    message: roomMessages[name] ?? "",
+                  }),
                   ...rest,
                 })}</div>`,
             )
@@ -102,7 +107,13 @@ export const RootBody = ({
   return body;
 };
 
-export const Room = ({ href, name, isEmpty, Participants = "" }) => `
+export const Room = ({
+  href,
+  name,
+  isEmpty,
+  Participants = "",
+  notes = "",
+}) => `
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt>
             ${name} - <a
@@ -112,14 +123,25 @@ export const Room = ({ href, name, isEmpty, Participants = "" }) => `
                   >Join</a
                 >
           </dt>
-          ${Participants}
+          <dd class="room__details">
+            ${notes}
+            ${Participants}
+          </dd>
         </div>
     `;
 
 export const Participants = ({ participants }) =>
-  `<dd class="room__participants">
-     ${participants.map((p) => Participant(p)).join("&nbsp;")}
-   </dd>`;
+  participants.map((p) => Participant(p)).join("&nbsp;");
+
+export const Notes = ({ name, message }) => `
+      <form method="POST" action="/note">
+          <input type="hidden" name="room" value="${name}">
+          <label>Notes
+              <textarea name="notes" class="room__notes">${message}</textarea>
+          </label>
+          <button type="submit">Update</button>
+       </form>
+`;
 
 export const Participant = ({ name, src }) =>
   `

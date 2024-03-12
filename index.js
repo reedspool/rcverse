@@ -7,7 +7,7 @@ import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
-import { Page, RootBody, Room, Participants } from "./html.js";
+import { Page, RootBody, Room, Participants, Notes } from "./html.js";
 
 const emitter = new EventEmitter();
 
@@ -209,7 +209,7 @@ const lucia = new Lucia(adapter, {
 		return { refresh_token: attributes.refresh_token };
 	},
 });
-
+app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
 	if (req.method === "GET") {
 		return next();
@@ -224,6 +224,8 @@ app.use((req, res, next) => {
 	) {
 		return res.status(403).end();
 	}
+
+	return next();
 });
 
 app.use(async (req, res, next) => {
@@ -273,6 +275,9 @@ app.get("/", async (req, res) => {
 				},
 			);
 
+			// const a = await fetch("https://www.recurse.com/api/v1/profiles");
+
+			// console.log(await a.json());
 
 			await sql.query(
 				"update user_session set refresh_token = $1 where id = $2",
@@ -310,9 +315,19 @@ app.get("/", async (req, res) => {
 				zoomRooms,
 				roomNameToParticipantPersonNames,
 				participantPersonNamesToEntity,
+				roomMessages,
 			}),
 		}),
 	);
+});
+
+const roomMessages = {};
+app.post("/note", function (req, res) {
+	const { room, notes } = req.body;
+	roomMessages[room] = notes ?? "";
+
+	console.log("meow");
+	res.redirect("/");
 });
 
 app.get("/sse", async function (req, res) {
@@ -345,6 +360,10 @@ app.get("/sse", async function (req, res) {
 								})),
 						  })
 						: ``,
+				notes: Notes({
+					name: zoom_room_name,
+					message: roomMessages[zoom_room_name],
+				}),
 				href: zoomRoomsByName[zoom_room_name],
 			}).replaceAll("\n", "")}\n\n`,
 		);
