@@ -12,6 +12,8 @@ import EventEmitter from "node:events";
 const emitter = new EventEmitter();
 
 const app = express();
+app.use(express.urlencoded({ extended: true }));
+
 const port = process.env.PORT || 3001;
 
 const zoomRooms = [
@@ -112,7 +114,6 @@ const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
 const tokenEndpoint = "https://www.recurse.com/oauth/token";
 
-// DO NOT COMMIT
 // From https://www.recurse.com/settings/apps
 const clientId = process.env.OAUTH_CLIENT_ID;
 const clientSecret = process.env.OAUTH_CLIENT_SECRET;
@@ -121,6 +122,7 @@ const actionCableAppId = process.env.ACTION_CABLE_APP_ID;
 const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 
 const roomNameToParticipantPersonNames = {};
+const roomMessages = { "Midori": "suppppppppp" };
 const participantPersonNamesToEntity = {};
 
 // TODO
@@ -276,6 +278,7 @@ app.use((req, res, next) => {
 	) {
 		return res.status(403).end();
 	}
+	return next();
 });
 
 app.use(async (req, res, next) => {
@@ -317,24 +320,37 @@ const Room = ({ href, name }) => `
                   >Join</a
                 >
           </dt>
-          ${roomNameToParticipantPersonNames[name]?.length > 0
-		? `<dd class="room__participants"> ${roomNameToParticipantPersonNames[
-			name
-		]
-			.map(
-				(name) =>
-					`
+		 <dd>
+			<form method="POST" action="/note">
+			<input type="hidden" name="room" value="${name}">
+			<label>notes<textarea name="notes" class="room__notes">${roomMessages[name] ?? ''}</textarea></label><button type="submit">Update</button></form>
+	<div class="room__participants">
+	 ${roomNameToParticipantPersonNames[name]?.length > 0 ? roomNameToParticipantPersonNames[
+		name
+	]
+		.map(
+			(name) =>
+				`
 									<img
 										class="face-marker"
 										src=${participantPersonNamesToEntity[name].image_path}
 										title="${name}">
 								`,
-			)
-			.join("&nbsp;")}</dd>`
-		: ``
-	}
+		)
+		.join("&nbsp;") : ''}</div></dd>
+	
 		</div>
     `;
+
+
+
+app.post("/note", function(req, res) {
+	const { room, notes } = req.body;
+	roomMessages[room] = notes ?? '';
+
+	// res.send({});
+	res.redirect("/");
+});
 
 // TODO I don't know where to write this
 // Client could lose SSE connection for a long time, like if they close their laptop
@@ -448,6 +464,7 @@ app.get("/sse", async function(req, res) {
 		emitter.off("room-change", listener);
 		res.end();
 	});
+	emitter.on("kill-all", () => { res.end() });
 });
 
 app.get("/logout", async (req, res) => {
@@ -555,7 +572,11 @@ const listener = app.listen(port, () => {
 // From https://github.com/strongloop/node-foreman/issues/118#issuecomment-475902308
 process.on("SIGINT", () => {
 	listener.close(() => {
-		process.exit(0);
+		emitter.emit("kill-all");
+		// TODO didn't test the need for setTimeout
+		setTimeout(() => {
+			process.exit(0);
+		}, 0)
 	});
 });
 // Typescript recommendation from https://lucia-auth.com/getting-started/
