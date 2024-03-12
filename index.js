@@ -7,6 +7,7 @@ import { NeonHTTPAdapter } from "@lucia-auth/adapter-postgresql";
 import { neon } from "@neondatabase/serverless";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
+import { Page, RootBody, Room, Participants } from "./html.js";
 
 const emitter = new EventEmitter();
 
@@ -207,56 +208,6 @@ const lucia = new Lucia(adapter, {
 	},
 });
 
-const page = ({ body, title }) => `
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>${title}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="shortcut icon" type="image/png" href="favicon.png" />
-	<style type="text/css" media="screen">
-  	  .face-marker {
-        width: 2em;
-        aspect-ratio: 1;
-        border-radius: 99999px;
-        border: 4px solid forestgreen;
-		margin-left: -1.4em;
-      }
-
-      .empty-room-memo {
-        font-size: 0.8em;
-        font-style: italic;
-      }
-
-      .room-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4em;
-      }
-
-      .room:hover {
-        background-color: rgba(0,0,0,0.1);
-      }
-
-      .room__participants {
-        padding-top: 0.6em;
-      }
-
-      .room {
-        padding: 0.4em;
-      }
-	</style>
-  </head>
-  <body>
-    ${body}
-
-	<script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-	<script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
-
-  </body>
-</html>
-`;
-
 app.use((req, res, next) => {
 	if (req.method === "GET") {
 		return next();
@@ -298,40 +249,6 @@ app.use(async (req, res, next) => {
 	res.locals.session = session;
 	return next();
 });
-
-const Room = ({ href, name }) => `
-		<div class="room ${
-			roomNameToParticipantPersonNames[name]?.length > 0
-				? "room--non-empty"
-				: ""
-		}">
-          <dt>
-            ${name} - <a
-                  href="${href}"
-				  target="_blank"
-                  rel="noopener noreferrer"
-                  >Join</a
-                >
-          </dt>
-          ${
-						roomNameToParticipantPersonNames[name]?.length > 0
-							? `<dd class="room__participants"> ${roomNameToParticipantPersonNames[
-									name
-							  ]
-									.map(
-										(name) =>
-											`
-									<img
-										class="face-marker"
-										src=${participantPersonNamesToEntity[name].image_path}
-										title="${name}">
-								`,
-									)
-									.join("&nbsp;")}</dd>`
-							: ``
-					}
-		</div>
-    `;
 
 // TODO I don't know where to write this
 // Client could lose SSE connection for a long time, like if they close their laptop
@@ -378,41 +295,19 @@ app.get("/", async (req, res) => {
 			);
 		}
 	}
-	let body = `<h1>RCVerse</h1>`;
-	body += `<h2>Whatever you make it</h2>`;
-
-	if (authenticated) {
-		body += `
-
-	<dl class="room-list" hx-ext="sse" sse-connect="/sse">
-      ${zoomRooms
-				.map(
-					({ name, ...rest }) =>
-						`<div sse-swap="room-update-${name}">${Room({
-							name,
-							...rest,
-						})}</div>`,
-				)
-				.join("")}
-
-      <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
-	</dl>
-
-	<p>You\'re logged in! - <a href="/logout">logout</a></p>
-		`;
-	} else {
-		body += `
-			<p><a href="/getAuthorizationUrl">Login</a></p>
-		`;
-	}
 
 	res.send(
 		// TODO: Cache an authenticated version and an unauthenticated version
 		//       and only invalidate that cache when a zoom room update occurs
 		// ACTUALLY we can cache each room too! And only invalidate them when a room change occurs
-		page({
+		Page({
 			title: "RCVerse",
-			body,
+			body: RootBody({
+				authenticated,
+				zoomRooms,
+				roomNameToParticipantPersonNames,
+				participantPersonNamesToEntity,
+			}),
 		}),
 	);
 });
@@ -433,7 +328,22 @@ app.get("/sse", async function (req, res) {
 		console.log("Sending ", person_name, action, zoom_room_name);
 		res.write(`event:room-update-${zoom_room_name}\n`);
 		res.write(
-			`data: ${Room(zoomRoomsByName[zoom_room_name]).replaceAll("\n", "")}\n\n`,
+			`data: ${Room({
+				name: zoom_room_name,
+				isEmpty: roomNameToParticipantPersonNames[zoom_room_name]?.length > 0,
+				Participants:
+					roomNameToParticipantPersonNames[zoom_room_name]?.length > 0
+						? Participants({
+								participants: roomNameToParticipantPersonNames[
+									zoom_room_name
+								].map((name) => ({
+									name,
+									src: participantPersonNamesToEntity[name].image_path,
+								})),
+						  })
+						: ``,
+				href: zoomRoomsByName[zoom_room_name],
+			}).replaceAll("\n", "")}\n\n`,
 		);
 	};
 	// TODO: For some reason this code stops the server from exiting clearly on Control-C (Signal Interrupt)
