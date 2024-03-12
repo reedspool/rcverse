@@ -122,7 +122,7 @@ const actionCableAppId = process.env.ACTION_CABLE_APP_ID;
 const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 
 const roomNameToParticipantPersonNames = {};
-const roomMessages = { "Midori": "suppppppppp" };
+const roomMessages = {};
 const participantPersonNamesToEntity = {};
 
 // TODO
