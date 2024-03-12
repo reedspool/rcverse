@@ -1,7 +1,7 @@
 import { Lucia, verifyRequestOrigin, TimeSpan } from "lucia";
 import { OAuth2Client, generateState } from "oslo/oauth2";
 import { OAuth2RequestError } from "oslo/oauth2";
-import { Cookie } from "oslo/cookie";
+import { Cookie, parseCookies } from "oslo/cookie";
 import express from "express";
 import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
@@ -101,7 +101,7 @@ zoomRooms.forEach(({ name, ...rest }) => {
 
 const baseDomain =
 	process.env.NODE_ENV === "production"
-		? `${process.env.FLY_APP_NAME}.fly.dev`
+		? `rcverse.recurse.com`
 		: `localhost:${port}`;
 const baseURL =
 	process.env.NODE_ENV === "production"
@@ -220,7 +220,13 @@ app.use((req, res, next) => {
 	if (
 		!originHeader ||
 		!hostHeader ||
-		!verifyRequestOrigin(originHeader, [hostHeader])
+		// TODO: Adding the `baseDomain` into this list, but is that secure?
+		//       Without this, error arose when we switched from fly.dev to
+		//       recurse.com - likely because the Recurse.com proxy is rewriting
+		//       the hostHeader to fly.dev.
+		//       I wish it added a header like `X-Forwarded-Host` as it did that,
+		//       as suggested by the NOTE from the Lucia docs I copy&pasted above
+		!verifyRequestOrigin(originHeader, [hostHeader, baseDomain])
 	) {
 		return res.status(403).end();
 	}
@@ -326,7 +332,8 @@ app.post("/note", function (req, res) {
 	const { room, notes } = req.body;
 	roomMessages[room] = notes ?? "";
 
-	console.log("meow");
+	console.log(`Room '${room}' note changed to ${notes}`);
+
 	res.redirect("/");
 });
 
@@ -343,7 +350,6 @@ app.get("/sse", async function (req, res) {
 	res.write("retry: 10000\n\n");
 
 	const listener = (person_name, action, zoom_room_name) => {
-		console.log("Sending ", person_name, action, zoom_room_name);
 		res.write(`event:room-update-${zoom_room_name}\n`);
 		res.write(
 			`data: ${Room({
@@ -384,12 +390,12 @@ app.get("/logout", async (req, res) => {
 
 	res.redirect("/");
 });
-
+var oauthStateCookieName = "rc-verse-login-oauth-state";
 app.get("/getAuthorizationUrl", async (req, res) => {
 	const state = generateState();
 	res.appendHeader(
 		"Set-Cookie",
-		new Cookie("rc-verse-login-oauth-state", state).serialize(),
+		new Cookie(oauthStateCookieName, state).serialize(),
 	);
 
 	const url = await client.createAuthorizationURL({
@@ -402,10 +408,8 @@ app.get("/getAuthorizationUrl", async (req, res) => {
 app.get("/myOauth2RedirectUri", async (req, res) => {
 	const { state, code } = req.query;
 
-	const cookieState = req.headers.cookie.match(
-		/rc-verse-login-oauth-state=(.*)&?/,
-	)?.[1];
-	console.log("cookie", req.headers.cookie, cookieState);
+	const cookies = parseCookies(req.headers.cookie);
+	const cookieState = cookies.get(oauthStateCookieName);
 
 	if (!cookieState || !state || cookieState !== state) {
 		// TODO: Don't crash the server!
@@ -477,15 +481,16 @@ app.use(function (req, res) {
 	res.send("404");
 });
 const listener = app.listen(port, () => {
-	console.log(`Server is available at http://localhost:${port}`);
+	console.log(`Server is available at ${baseURL}`);
 });
 
 // So I can kill from local terminal with Ctrl-c
 // From https://github.com/strongloop/node-foreman/issues/118#issuecomment-475902308
 process.on("SIGINT", () => {
-	listener.close(() => {
-		process.exit(0);
-	});
+	listener.close(() => {});
+	// Just wait some amount of time before exiting. Ideally the listener would
+	// close successfully, but it seems to hang for some reason.
+	setTimeout(() => process.exit(0), 150);
 });
 // Typescript recommendation from https://lucia-auth.com/getting-started/
 // declare module "lucia" {
