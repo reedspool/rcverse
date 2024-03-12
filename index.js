@@ -334,7 +334,9 @@ app.post("/note", function (req, res) {
 
 	console.log(`Room '${room}' note changed to ${notes}`);
 
-	res.redirect("/");
+	emitter.emit("room-change", "someone", "updated the notes for", room);
+
+	res.status(200).end();
 });
 
 app.get("/sse", async function (req, res) {

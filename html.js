@@ -135,7 +135,7 @@ export const Participants = ({ participants }) =>
   participants.map((p) => Participant(p)).join("&nbsp;");
 
 export const Notes = ({ name, message }) => `
-      <form method="POST" action="/note">
+      <form method="POST" action="/note" hx-post="/note">
           <input type="hidden" name="room" value="${name}">
           <label>Notes
               <textarea name="notes" class="room__notes">${message}</textarea>
