@@ -370,7 +370,7 @@ app.get("/sse", async function (req, res) {
 						: ``,
 				notes: Notes({
 					name: zoom_room_name,
-					message: roomMessages[zoom_room_name],
+					message: roomMessages[zoom_room_name] ?? "",
 				}),
 				href: zoomRoomsByName[zoom_room_name],
 			}).replaceAll("\n", "")}\n\n`,

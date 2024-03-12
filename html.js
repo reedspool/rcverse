@@ -61,7 +61,55 @@ export const RootBody = ({
   roomMessages,
 }) => {
   let body = `<h1>RCVerse</h1>`;
-  body += `<h2>Whatever you make it</h2>`;
+  body += `
+<h2>Whatever you make it</h2>
+
+<style>
+summary {
+  cursor: pointer;
+}
+</style>
+<details>
+<summary>About</summary>
+
+<p>RCVerse is a tool for all Recursers, in-batch and alum, remote and in-hub.</p>
+
+<p>
+We want to connect. We want tools to help connect us. We know how to build them. Let's do it!
+</p>
+
+<p>
+The lofty, long term goal of RCVerse is to be open source, to be a website, to be a canvas
+for the creativity of RCers, to be a practice ground for creative web development,
+to be a space for trying out novel collaborative tools.
+</p>
+
+<p>
+The more practical short-term goal for this site is to be the first place RCers
+look when they sign on in the morning, to see what's going on, both virtually and
+physically. To do this, we'll have to keep making it more useful over time, and
+removing any friction which keeps it being as useful as it can be.
+</p>
+
+<p>
+To throw your idea at the project, slap it on the shared
+<a href="https://docs.google.com/document/d/1tLA_BjwM5k93WsMvNKT58kDb4Ksa9S6TFvGMAuK6Ldk/edit#heading=h.8rrvaio0w6r3">google doc</a>,
+or message the
+<a href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace">Zulip thread</a>,
+or message Reed Spool (W2'24) directly.
+</p>
+
+<p>
+Please message Reed Spool (W2'24) with your GitHub username to gain access to the
+<a href="https://github.com/reedspool/rc-verse">source code repository</a>.
+Do not hesitate, even if you don't want to contribute <em>now</em>,
+<strong>request now anyways</strong>.
+The repo is currently private out of fear for leaking Recurser information.
+Eventually we hope to make it open to everyone in the RC GitHub community.
+</p>
+
+</details>
+  `;
 
   if (authenticated) {
     body += `
