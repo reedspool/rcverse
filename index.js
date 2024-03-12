@@ -466,6 +466,8 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 	}
 });
 
+app.use(express.static("public"));
+
 //
 // Final 404/5XX handlers
 //
