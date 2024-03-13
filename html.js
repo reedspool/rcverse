@@ -10,7 +10,7 @@ export const Page = ({ body, title }) => `
     <title>${title}</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="shortcut icon" type="image/png" href="favicon.ico" />
+    <link rel="shortcut icon" type="image/png" href="public/favicon.ico" />
     <style type="text/css" media="screen">
       /* Reset */
 
