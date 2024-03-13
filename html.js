@@ -88,13 +88,7 @@ export const Page = ({ body, title }) => `
 </html>
 `;
 
-export const RootBody = ({
-  authenticated,
-  zoomRooms,
-  roomNameToParticipantNames,
-  participantNameToEntity,
-  roomNameToNote,
-}) => {
+export const RootBody = ({ authenticated, rooms }) => {
   let body = `<h1>RCVerse</h1>`;
   body += `
 <h2>Whatever you make it</h2>
@@ -148,36 +142,7 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
 
 </details>
         <dl class="room-list" hx-ext="sse" sse-connect="/sse">
-          ${zoomRooms
-            .map(
-              ({ roomName, ...rest }) =>
-                `<div sse-swap="room-update-${roomName}" class="display-contents">${Room(
-                  {
-                    roomName,
-                    isEmpty: roomNameToParticipantNames[roomName]?.length > 0,
-
-                    Participants:
-                      roomNameToParticipantNames[roomName]?.length > 0
-                        ? Participants({
-                            participants: roomNameToParticipantNames[
-                              roomName
-                            ].map((participantName) => ({
-                              participantName,
-                              faceMarkerImagePath:
-                                participantNameToEntity[participantName]
-                                  .faceMarkerImagePath,
-                            })),
-                          })
-                        : ``,
-                    note: Note({
-                      roomName,
-                      note: roomNameToNote[roomName] ?? "",
-                    }),
-                    ...rest,
-                  },
-                )}</div>`,
-            )
-            .join("")}
+          ${rooms.map(Room).join("\n")}
         </dl>
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>
@@ -192,26 +157,28 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
 };
 
 export const Room = ({
-  href,
+  roomHref,
   roomName,
   isEmpty,
-  Participants = "",
+  participants,
   note = "",
 }) => `
+    <div sse-swap="room-update-${roomName}" hx-swap="outerHTML" class="display-contents">
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt>
             <span class="room__title">${roomName}</span> <a
-                  href="${href}"
+                  href="${roomHref}"
                   target="_blank"
                   rel="noopener noreferrer"
                   >Join</a
                 >
           </dt>
           <dd class="room__details">
-            ${Participants}
-            ${note}
+            ${Participants({ participants })}
+            ${Note({ roomName, note })}
           </dd>
         </div>
+    </div>
     `;
 
 export const Note = ({ roomName, note }) => NoteDisplay({ roomName, note });

@@ -321,13 +321,15 @@ app.get("/", async (req, res) => {
 		// ACTUALLY we can cache each room too! And only invalidate them when a room change occurs
 		Page({
 			title: "RCVerse",
-			body: RootBody({
-				authenticated,
-				zoomRooms,
-				roomNameToParticipantNames,
-				participantNameToEntity,
-				roomNameToNote,
-			}),
+			body: RootBody(
+				transformInternalsToWhatTheRootBodyHtmlRendererNeeds({
+					authenticated,
+					zoomRooms,
+					roomNameToParticipantNames,
+					participantNameToEntity,
+					roomNameToNote,
+				}),
+			),
 		}),
 	);
 });
@@ -358,6 +360,51 @@ app.get("/note.html", function (req, res) {
 	res.send(EditNoteForm({ roomName, note: note }));
 });
 
+const transformInternalsToWhatTheRootBodyHtmlRendererNeeds = ({
+	authenticated,
+	zoomRooms,
+	roomNameToParticipantNames,
+	participantNameToEntity,
+	roomNameToNote,
+}) => {
+	const rooms = [];
+
+	zoomRooms.forEach(({ roomName }) => {
+		rooms.push(
+			transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
+				roomName,
+				roomHref: zoomRoomsByName[roomName].href,
+				roomNameToNote,
+				roomNameToParticipantNames,
+				participantNameToEntity,
+			}),
+		);
+	});
+
+	return { authenticated, rooms };
+};
+
+const transformInternalsToWhatTheSingleRoomHtmlRendererNeeds = ({
+	roomName,
+	roomHref,
+	roomNameToNote,
+	roomNameToParticipantNames,
+	participantNameToEntity,
+}) => {
+	return {
+		roomName,
+		roomHref,
+		note: roomNameToNote[roomName] ?? "",
+		isEmpty: roomNameToParticipantNames[roomName]?.length > 0,
+		participants:
+			roomNameToParticipantNames[roomName]?.map((participantName) => ({
+				participantName,
+				faceMarkerImagePath:
+					participantNameToEntity[participantName].faceMarkerImagePath,
+			})) ?? [],
+	};
+};
+
 app.get("/sse", async function (req, res) {
 	res.set({
 		"Cache-Control": "no-cache",
@@ -372,28 +419,15 @@ app.get("/sse", async function (req, res) {
 	const listener = (participantName, action, roomName) => {
 		res.write(`event:room-update-${roomName}\n`);
 		res.write(
-			`data: ${Room({
-				roomName,
-				isEmpty: roomNameToParticipantNames[roomName]?.length > 0,
-				Participants:
-					roomNameToParticipantNames[roomName]?.length > 0
-						? Participants({
-								participants: roomNameToParticipantNames[roomName].map(
-									(participantName) => ({
-										participantName,
-										faceMarkerImagePath:
-											participantNameToEntity[participantName]
-												.faceMarkerImagePath,
-									}),
-								),
-						  })
-						: ``,
-				note: Note({
+			`data: ${Room(
+				transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
 					roomName,
-					note: roomNameToNote[roomName] ?? "",
+					roomHref: zoomRoomsByName[roomName].href,
+					roomNameToNote,
+					roomNameToParticipantNames,
+					participantNameToEntity,
 				}),
-				...zoomRoomsByName[roomName],
-			}).replaceAll("\n", "")}\n\n`,
+			).replaceAll("\n", "")}\n\n`,
 		);
 	};
 	// TODO: For some reason this code stops the server from exiting clearly on Control-C (Signal Interrupt)
