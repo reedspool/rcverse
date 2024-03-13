@@ -14,6 +14,8 @@ const emitter = new EventEmitter();
 const app = express();
 const port = process.env.PORT || 3001;
 
+let currentSSEConnectionCount = 0;
+
 const zoomRooms = [
 	{
 		href: "https://recurse.com/zoom/aegis",
@@ -77,11 +79,11 @@ const zoomRooms = [
 	},
 	{
 		href: "https://recurse.com/zoom/pomodoro_room",
-		name: "Pomodoro room",
+		name: "Pomodoro Room",
 	},
 	{
 		href: "https://recurse.com/zoom/presentation_space",
-		name: "Presentation space",
+		name: "Presentation Space",
 	},
 	{
 		href: "https://recurse.com/zoom/faculty_area",
@@ -339,8 +341,18 @@ app.post("/note", function (req, res) {
 	res.status(200).end();
 });
 
+app.get("/note.html", function (req, res) {
+	const { room, notes } = req.body;
+	roomMessages[room] = notes ?? "";
+
+	console.log(`Room '${room}' note changed to ${notes}`);
+
+	emitter.emit("room-change", "someone", "updated the notes for", room);
+
+	res.status(200).end();
+});
+
 app.get("/sse", async function (req, res) {
-	console.log("Got /sse");
 	res.set({
 		"Cache-Control": "no-cache",
 		"Content-Type": "text/event-stream",
@@ -380,9 +392,17 @@ app.get("/sse", async function (req, res) {
 	//       Maybe we can listen for the event of SIG INT and manually call res.end on every res that still has an event emitter?
 
 	emitter.on("room-change", listener);
+	currentSSEConnectionCount++;
+	console.log(
+		`There are currently ${currentSSEConnectionCount} SSE connections`,
+	);
 	// If client closes connection, stop sending events
 	res.on("close", () => {
 		emitter.off("room-change", listener);
+		currentSSEConnectionCount--;
+		console.log(
+			`There are currently ${currentSSEConnectionCount} SSE connections`,
+		);
 		res.end();
 	});
 });
@@ -392,7 +412,8 @@ app.get("/logout", async (req, res) => {
 
 	res.redirect("/");
 });
-var oauthStateCookieName = "rc-verse-login-oauth-state";
+
+const oauthStateCookieName = "rc-verse-login-oauth-state";
 app.get("/getAuthorizationUrl", async (req, res) => {
 	const state = generateState();
 	res.appendHeader(
@@ -415,7 +436,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 
 	if (!cookieState || !state || cookieState !== state) {
 		// TODO: Don't crash the server!
-		console.error("State didn't match\n", cookieState, "\n", state);
+		console.error("State didn't match", { cookieState, state });
 		throw new Error("State didn't match");
 	}
 

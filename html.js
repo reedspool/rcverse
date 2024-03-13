@@ -12,12 +12,30 @@ export const Page = ({ body, title }) => `
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/png" href="favicon.ico" />
     <style type="text/css" media="screen">
-      .face-marker {
+      p {
+        max-width: 60ch;
+      }
+
+      button { cursor: pointer; }
+
+      .participants {
+        display: flex;
+        flex-direction: row-reverse;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .participants__participant {
         width: 2em;
+        position: relative;
         aspect-ratio: 1;
         border-radius: 99999px;
         border: 4px solid forestgreen;
-        margin-left: -1.4em;
+      }
+
+      .participants__participant:not(:first-child) {
+        margin-right: -0.8em;
       }
 
       .empty-room-memo {
@@ -26,21 +44,32 @@ export const Page = ({ body, title }) => `
       }
 
       .room-list {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(65ch, 1fr));
+        padding: 4rem 2rem;
+
         gap: 0.4em;
+      }
+
+      .room {
+        min-height: 10em;
+        padding: 0.4em;
       }
 
       .room:hover {
         background-color: rgba(0,0,0,0.1);
       }
 
+      .room__title {
+        font-size: 1.4em;
+      }
+
       .room__details {
         padding-top: 0.6em;
       }
 
-      .room {
-        padding: 0.4em;
+      .display-contents {
+        display: contents;
       }
     </style>
   </head>
@@ -63,7 +92,10 @@ export const RootBody = ({
   let body = `<h1>RCVerse</h1>`;
   body += `
 <h2>Whatever you make it</h2>
+  `;
 
+  if (authenticated) {
+    body += `
 <style>
 summary {
   cursor: pointer;
@@ -109,40 +141,36 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
 </p>
 
 </details>
-  `;
-
-  if (authenticated) {
-    body += `
         <dl class="room-list" hx-ext="sse" sse-connect="/sse">
           ${zoomRooms
             .map(
               ({ name, ...rest }) =>
-                `<div sse-swap="room-update-${name}">${Room({
-                  name,
-                  isEmpty: roomNameToParticipantPersonNames[name]?.length > 0,
+                `<div sse-swap="room-update-${name}" class="display-contents">${Room(
+                  {
+                    name,
+                    isEmpty: roomNameToParticipantPersonNames[name]?.length > 0,
 
-                  Participants:
-                    roomNameToParticipantPersonNames[name]?.length > 0
-                      ? Participants({
-                          participants: roomNameToParticipantPersonNames[
-                            name
-                          ].map((name) => ({
-                            name,
-                            src: participantPersonNamesToEntity[name]
-                              .image_path,
-                          })),
-                        })
-                      : ``,
-                  notes: Notes({
-                    name: name,
-                    message: roomMessages[name] ?? "",
-                  }),
-                  ...rest,
-                })}</div>`,
+                    Participants:
+                      roomNameToParticipantPersonNames[name]?.length > 0
+                        ? Participants({
+                            participants: roomNameToParticipantPersonNames[
+                              name
+                            ].map((name) => ({
+                              name,
+                              src: participantPersonNamesToEntity[name]
+                                .image_path,
+                            })),
+                          })
+                        : ``,
+                    notes: Notes({
+                      name: name,
+                      message: roomMessages[name] ?? "",
+                    }),
+                    ...rest,
+                  },
+                )}</div>`,
             )
             .join("")}
-
-          <dt><a href="https://recurse.rctogether.com">Virtual RC</a></dt>
         </dl>
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>
@@ -165,7 +193,7 @@ export const Room = ({
 }) => `
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt>
-            ${name} - <a
+            <span class="room__title">${name}</span> <a
                   href="${href}"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -173,14 +201,11 @@ export const Room = ({
                 >
           </dt>
           <dd class="room__details">
-            ${notes}
             ${Participants}
+            ${notes}
           </dd>
         </div>
     `;
-
-export const Participants = ({ participants }) =>
-  participants.map((p) => Participant(p)).join("&nbsp;");
 
 export const Notes = ({ name, message }) => `
       <form method="POST" action="/note" hx-post="/note">
@@ -191,11 +216,15 @@ export const Notes = ({ name, message }) => `
           <button type="submit">Update</button>
        </form>
 `;
+export const Participants = ({ participants }) =>
+  `<div class="participants">${participants
+    .map((p) => Participant(p))
+    .join("")}</div>`;
 
 export const Participant = ({ name, src }) =>
   `
   <img
-      class="face-marker"
+      class="participants__participant"
       src=${src}
       title="${name}">
   `;
