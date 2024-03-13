@@ -46,7 +46,11 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
             // If we haven't been seen in one hour and 15 minutes
             // TODO: Contact James Porter to attempt to fix the bug where people
             //       remain in the zoom room forever
-            if (millisSinceLastSeen > 1.25 * hourInMillis) return;
+            // NOTE: For groups like Music Consumption Group, that hang in Zoom
+            //       for many many hours, we DO want the long "since last seen"
+            //       but for the bug where people stay in the channel forever, we don't
+            //       Tricky tricky.
+            if (millisSinceLastSeen > 5 * hourInMillis) return;
 
             zoomRoomUpdateCallback({
               participantName: person_name,
