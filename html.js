@@ -202,6 +202,9 @@ export const Room = ({ href, name, isEmpty, Participants = "", note = "" }) => `
     `;
 
 export const Note = ({ name, message }) =>
+  message ? EditNoteForm({ name, message }) : AddNoteButton({ name });
+
+export const EditNoteForm = ({ name, message }) =>
   `
       <form method="POST" action="/note" hx-post="/note">
           <input type="hidden" name="room" value="${name}">
@@ -211,6 +214,9 @@ export const Note = ({ name, message }) =>
           <button type="submit">Update</button>
        </form>
 `;
+
+export const AddNoteButton = ({ name }) =>
+  `<button hx-get="/note.html?roomName=${name}" hx-swap="outerHTML">Add note</button>`;
 
 export const Participants = ({ participants }) =>
   `<div class="participants">${participants

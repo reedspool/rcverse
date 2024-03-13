@@ -7,7 +7,14 @@ import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
-import { Page, RootBody, Room, Participants, Note } from "./html.js";
+import {
+	Page,
+	RootBody,
+	Room,
+	Participants,
+	Note,
+	EditNoteForm,
+} from "./html.js";
 
 const emitter = new EventEmitter();
 
@@ -342,14 +349,10 @@ app.post("/note", function (req, res) {
 });
 
 app.get("/note.html", function (req, res) {
-	const { room, note } = req.body;
-	roomMessages[room] = note ?? "";
+	const { roomName } = req.query;
+	const note = roomMessages[roomName] ?? "";
 
-	console.log(`Room '${room}' note changed to ${note}`);
-
-	emitter.emit("room-change", "someone", "updated the note for", room);
-
-	res.status(200).end();
+	res.send(EditNoteForm({ name: roomName, message: note }));
 });
 
 app.get("/sse", async function (req, res) {
