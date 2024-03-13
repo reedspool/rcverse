@@ -49,9 +49,9 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
             if (millisSinceLastSeen > 1.25 * hourInMillis) return;
 
             zoomRoomUpdateCallback({
-              person_name,
-              zoom_room_name: zoom_user_display_name,
-              image_path,
+              participantName: person_name,
+              roomName: zoom_user_display_name,
+              faceMarkerImagePath: image_path,
             });
           }
         });
@@ -61,9 +61,9 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
         if (type !== "Avatar") return;
 
         zoomRoomUpdateCallback({
-          person_name,
-          zoom_room_name: zoom_user_display_name,
-          image_path,
+          participantName: person_name,
+          roomName: zoom_user_display_name,
+          faceMarkerImagePath: image_path,
         });
       }
     },

@@ -85,9 +85,9 @@ export const Page = ({ body, title }) => `
 export const RootBody = ({
   authenticated,
   zoomRooms,
-  roomNameToParticipantPersonNames,
-  participantPersonNamesToEntity,
-  roomMessages,
+  roomNameToParticipantNames,
+  participantNameToEntity,
+  roomNameToNote,
 }) => {
   let body = `<h1>RCVerse</h1>`;
   body += `
@@ -144,27 +144,28 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
         <dl class="room-list" hx-ext="sse" sse-connect="/sse">
           ${zoomRooms
             .map(
-              ({ name, ...rest }) =>
-                `<div sse-swap="room-update-${name}" class="display-contents">${Room(
+              ({ roomName, ...rest }) =>
+                `<div sse-swap="room-update-${roomName}" class="display-contents">${Room(
                   {
-                    name,
-                    isEmpty: roomNameToParticipantPersonNames[name]?.length > 0,
+                    roomName,
+                    isEmpty: roomNameToParticipantNames[roomName]?.length > 0,
 
                     Participants:
-                      roomNameToParticipantPersonNames[name]?.length > 0
+                      roomNameToParticipantNames[roomName]?.length > 0
                         ? Participants({
-                            participants: roomNameToParticipantPersonNames[
-                              name
-                            ].map((name) => ({
-                              name,
-                              src: participantPersonNamesToEntity[name]
-                                .image_path,
+                            participants: roomNameToParticipantNames[
+                              roomName
+                            ].map((participantName) => ({
+                              participantName,
+                              faceMarkerImagePath:
+                                participantNameToEntity[participantName]
+                                  .faceMarkerImagePath,
                             })),
                           })
                         : ``,
                     note: Note({
-                      name: name,
-                      message: roomMessages[name] ?? "",
+                      roomName,
+                      note: roomNameToNote[roomName] ?? "",
                     }),
                     ...rest,
                   },
@@ -184,10 +185,16 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
   return body;
 };
 
-export const Room = ({ href, name, isEmpty, Participants = "", note = "" }) => `
+export const Room = ({
+  href,
+  roomName,
+  isEmpty,
+  Participants = "",
+  note = "",
+}) => `
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt>
-            <span class="room__title">${name}</span> <a
+            <span class="room__title">${roomName}</span> <a
                   href="${href}"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -201,32 +208,32 @@ export const Room = ({ href, name, isEmpty, Participants = "", note = "" }) => `
         </div>
     `;
 
-export const Note = ({ name, message }) =>
-  message ? EditNoteForm({ name, message }) : AddNoteButton({ name });
+export const Note = ({ roomName, note }) =>
+  note ? EditNoteForm({ roomName, note }) : AddNoteButton({ roomName });
 
-export const EditNoteForm = ({ name, message }) =>
+export const EditNoteForm = ({ roomName, note }) =>
   `
       <form method="POST" action="/note" hx-post="/note">
-          <input type="hidden" name="room" value="${name}">
+          <input type="hidden" name="room" value="${roomName}">
           <label>Note
-              <textarea name="note" class="room__note">${message}</textarea>
+              <textarea name="note" class="room__note">${note}</textarea>
           </label>
           <button type="submit">Update</button>
        </form>
 `;
 
-export const AddNoteButton = ({ name }) =>
-  `<button hx-get="/note.html?roomName=${name}" hx-swap="outerHTML">Add note</button>`;
+export const AddNoteButton = ({ roomName }) =>
+  `<button hx-get="/note.html?roomName=${roomName}" hx-swap="outerHTML">Add note</button>`;
 
 export const Participants = ({ participants }) =>
   `<div class="participants">${participants
     .map((p) => Participant(p))
     .join("")}</div>`;
 
-export const Participant = ({ name, src }) =>
+export const Participant = ({ participantName, faceMarkerImagePath }) =>
   `
   <img
       class="participants__participant"
-      src=${src}
-      title="${name}">
+      src=${faceMarkerImagePath}
+      title="${participantName}">
   `;

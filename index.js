@@ -26,86 +26,86 @@ let currentSSEConnectionCount = 0;
 const zoomRooms = [
 	{
 		href: "https://recurse.com/zoom/aegis",
-		name: "Aegis",
+		roomName: "Aegis",
 	},
 	{
 		href: "https://recurse.com/zoom/arca",
-		name: "Arca",
+		roomName: "Arca",
 	},
 	{
 		href: "https://recurse.com/zoom/edos",
-		name: "Edos",
+		roomName: "Edos",
 	},
 	{
 		href: "https://recurse.com/zoom/genera",
-		name: "Genera",
+		roomName: "Genera",
 	},
 	{
 		href: "https://recurse.com/zoom/midori",
-		name: "Midori",
+		roomName: "Midori",
 	},
 	{
 		href: "https://recurse.com/zoom/verve",
-		name: "Verve",
+		roomName: "Verve",
 	},
 	{
 		href: "https://recurse.com/zoom/couches",
-		name: "Couches",
+		roomName: "Couches",
 	},
 	{
 		href: "https://recurse.com/zoom/kitchen",
-		name: "Kitchen",
+		roomName: "Kitchen",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_1",
-		name: "Pairing Station 1",
+		roomName: "Pairing Station 1",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_2",
-		name: "Pairing Station 2",
+		roomName: "Pairing Station 2",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_3",
-		name: "Pairing Station 3",
+		roomName: "Pairing Station 3",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_4",
-		name: "Pairing Station 4",
+		roomName: "Pairing Station 4",
 	},
 	{
 		href: "https://recurse.com/zoom/pairing_station_5",
-		name: "Pairing Station 5",
+		roomName: "Pairing Station 5",
 	},
 	{
 		href: "https://recurse.rctogether.com/zoom_meetings/35980/join",
-		name: "Pairing Station 6",
+		roomName: "Pairing Station 6",
 	},
 	{
 		href: "https://recurse.rctogether.com/zoom_meetings/35983/join",
-		name: "Pairing Station 7",
+		roomName: "Pairing Station 7",
 	},
 	{
 		href: "https://recurse.com/zoom/pomodoro_room",
-		name: "Pomodoro Room",
+		roomName: "Pomodoro Room",
 	},
 	{
 		href: "https://recurse.com/zoom/presentation_space",
-		name: "Presentation Space",
+		roomName: "Presentation Space",
 	},
 	{
 		href: "https://recurse.com/zoom/faculty_area",
-		name: "Faculty Area",
+		roomName: "Faculty Area",
 	},
 	{
 		href: "https://recurse.com/zoom/faculty_lounge",
-		name: "Faculty Lounge",
+		roomName: "Faculty Lounge",
 	},
 ];
 
-const zoomRoomNames = zoomRooms.map(({ name }) => name);
+const zoomRoomNames = zoomRooms.map(({ roomName }) => roomName);
 const zoomRoomsByName = {};
-zoomRooms.forEach(({ name, ...rest }) => {
-	zoomRoomsByName[name] = { name, ...rest };
+zoomRooms.forEach(({ roomName, ...rest }) => {
+	zoomRoomsByName[roomName] = { roomName, ...rest };
 });
 
 const baseDomain =
@@ -129,8 +129,8 @@ const postgresConnection = process.env.POSTGRES_CONNECTION;
 const actionCableAppId = process.env.ACTION_CABLE_APP_ID;
 const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 
-const roomNameToParticipantPersonNames = {};
-const participantPersonNamesToEntity = {};
+const roomNameToParticipantNames = {};
+const participantNameToEntity = {};
 
 // TODO
 //  The action cable API sometimes updates with a zoom room participant count,
@@ -140,52 +140,48 @@ const participantPersonNamesToEntity = {};
 //     I'm guessing it will not show the person in the room, because we also observed
 //     the little bubble in Virutal RC didn't show that person as in the room
 connect(actionCableAppId, actionCableAppSecret, (entity) => {
-	const { zoom_room_name, person_name, image_path } = entity;
-	if (zoom_room_name !== null && !zoomRoomNames.includes(zoom_room_name)) {
+	const { roomName, participantName, faceMarkerImagePath } = entity;
+
+	if (roomName !== null && !zoomRoomNames.includes(roomName)) {
 		// TODO don't kill the server but be loud about this confusion in the future
-		console.error(`Surprising zoom room name '${zoom_room_name}'`);
+		console.error(`Surprising zoom room name '${roomName}'`);
 		return;
 	}
 
 	// zoom_room is a string means we're adding a person to that room
-	if (zoom_room_name) {
-		if (
-			participantPersonNamesToEntity[person_name]?.zoom_room_name ===
-			zoom_room_name
-		) {
+	if (roomName) {
+		if (participantNameToEntity[participantName]?.roomName === roomName) {
 			// Ignore, we already have this person in the right zoom room
 			return;
 		}
-		if (!roomNameToParticipantPersonNames[zoom_room_name]) {
-			roomNameToParticipantPersonNames[zoom_room_name] = [];
+		if (!roomNameToParticipantNames[roomName]) {
+			roomNameToParticipantNames[roomName] = [];
 		}
 
-		roomNameToParticipantPersonNames[zoom_room_name].push(person_name);
-		participantPersonNamesToEntity[person_name] = {
-			zoom_room_name,
-			image_path,
+		roomNameToParticipantNames[roomName].push(participantName);
+		participantNameToEntity[participantName] = {
+			roomName,
+			faceMarkerImagePath,
 		};
-		console.log(`${person_name} enterred ${zoom_room_name}`);
-		emitter.emit("room-change", person_name, "enterred", zoom_room_name);
+		console.log(`${participantName} enterred ${roomName}`);
+		emitter.emit("room-change", participantName, "enterred", roomName);
 	} else {
-		if (!participantPersonNamesToEntity[person_name]?.zoom_room_name) {
+		if (!participantNameToEntity[participantName]?.roomName) {
 			// Ignore, nothing to update, they're still not in a zoom room
 			return;
 		}
-		const { zoom_room_name: previous } =
-			participantPersonNamesToEntity[person_name];
+		const { roomName: previous } = participantNameToEntity[participantName];
 
-		participantPersonNamesToEntity[person_name] = {
-			zoom_room_name,
-			image_path,
+		participantNameToEntity[participantName] = {
+			roomName,
+			faceMarkerImagePath,
 		};
-		roomNameToParticipantPersonNames[previous] =
-			roomNameToParticipantPersonNames[previous].filter(
-				(name) => name !== person_name,
-			);
+		roomNameToParticipantNames[previous] = roomNameToParticipantNames[
+			previous
+		].filter((name) => name !== participantName);
 
-		console.log(`${person_name} departed ${previous}`);
-		emitter.emit("room-change", person_name, "departed", previous);
+		console.log(`${participantName} departed ${previous}`);
+		emitter.emit("room-change", participantName, "departed", previous);
 	}
 });
 
@@ -328,18 +324,18 @@ app.get("/", async (req, res) => {
 			body: RootBody({
 				authenticated,
 				zoomRooms,
-				roomNameToParticipantPersonNames,
-				participantPersonNamesToEntity,
-				roomMessages,
+				roomNameToParticipantNames,
+				participantNameToEntity,
+				roomNameToNote,
 			}),
 		}),
 	);
 });
 
-const roomMessages = {};
+const roomNameToNote = {};
 app.post("/note", function (req, res) {
 	const { room, note } = req.body;
-	roomMessages[room] = note ?? "";
+	roomNameToNote[room] = note ?? "";
 
 	console.log(`Room '${room}' note changed to ${note}`);
 
@@ -350,9 +346,9 @@ app.post("/note", function (req, res) {
 
 app.get("/note.html", function (req, res) {
 	const { roomName } = req.query;
-	const note = roomMessages[roomName] ?? "";
+	const note = roomNameToNote[roomName] ?? "";
 
-	res.send(EditNoteForm({ name: roomName, message: note }));
+	res.send(EditNoteForm({ roomName, note: note }));
 });
 
 app.get("/sse", async function (req, res) {
@@ -366,28 +362,30 @@ app.get("/sse", async function (req, res) {
 	// Tell the client to retry every 10 seconds if connectivity is lost
 	res.write("retry: 10000\n\n");
 
-	const listener = (person_name, action, zoom_room_name) => {
-		res.write(`event:room-update-${zoom_room_name}\n`);
+	const listener = (participantName, action, roomName) => {
+		res.write(`event:room-update-${roomName}\n`);
 		res.write(
 			`data: ${Room({
-				name: zoom_room_name,
-				isEmpty: roomNameToParticipantPersonNames[zoom_room_name]?.length > 0,
+				roomName,
+				isEmpty: roomNameToParticipantNames[roomName]?.length > 0,
 				Participants:
-					roomNameToParticipantPersonNames[zoom_room_name]?.length > 0
+					roomNameToParticipantNames[roomName]?.length > 0
 						? Participants({
-								participants: roomNameToParticipantPersonNames[
-									zoom_room_name
-								].map((name) => ({
-									name,
-									src: participantPersonNamesToEntity[name].image_path,
-								})),
+								participants: roomNameToParticipantNames[roomName].map(
+									(participantName) => ({
+										participantName,
+										faceMarkerImagePath:
+											participantNameToEntity[participantName]
+												.faceMarkerImagePath,
+									}),
+								),
 						  })
 						: ``,
 				note: Note({
-					name: zoom_room_name,
-					message: roomMessages[zoom_room_name] ?? "",
+					roomName,
+					note: roomNameToNote[roomName] ?? "",
 				}),
-				href: zoomRoomsByName[zoom_room_name],
+				href: zoomRoomsByName[roomName],
 			}).replaceAll("\n", "")}\n\n`,
 		);
 	};
