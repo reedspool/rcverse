@@ -162,7 +162,7 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
                             })),
                           })
                         : ``,
-                    notes: Notes({
+                    note: Note({
                       name: name,
                       message: roomMessages[name] ?? "",
                     }),
@@ -184,13 +184,7 @@ Eventually we hope to make it open to everyone in the RC GitHub community.
   return body;
 };
 
-export const Room = ({
-  href,
-  name,
-  isEmpty,
-  Participants = "",
-  notes = "",
-}) => `
+export const Room = ({ href, name, isEmpty, Participants = "", note = "" }) => `
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt>
             <span class="room__title">${name}</span> <a
@@ -202,20 +196,22 @@ export const Room = ({
           </dt>
           <dd class="room__details">
             ${Participants}
-            ${notes}
+            ${note}
           </dd>
         </div>
     `;
 
-export const Notes = ({ name, message }) => `
+export const Note = ({ name, message }) =>
+  `
       <form method="POST" action="/note" hx-post="/note">
           <input type="hidden" name="room" value="${name}">
-          <label>Notes
-              <textarea name="notes" class="room__notes">${message}</textarea>
+          <label>Note
+              <textarea name="note" class="room__note">${message}</textarea>
           </label>
           <button type="submit">Update</button>
        </form>
 `;
+
 export const Participants = ({ participants }) =>
   `<div class="participants">${participants
     .map((p) => Participant(p))

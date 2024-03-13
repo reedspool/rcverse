@@ -7,7 +7,7 @@ import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
-import { Page, RootBody, Room, Participants, Notes } from "./html.js";
+import { Page, RootBody, Room, Participants, Note } from "./html.js";
 
 const emitter = new EventEmitter();
 
@@ -331,23 +331,23 @@ app.get("/", async (req, res) => {
 
 const roomMessages = {};
 app.post("/note", function (req, res) {
-	const { room, notes } = req.body;
-	roomMessages[room] = notes ?? "";
+	const { room, note } = req.body;
+	roomMessages[room] = note ?? "";
 
-	console.log(`Room '${room}' note changed to ${notes}`);
+	console.log(`Room '${room}' note changed to ${note}`);
 
-	emitter.emit("room-change", "someone", "updated the notes for", room);
+	emitter.emit("room-change", "someone", "updated the note for", room);
 
 	res.status(200).end();
 });
 
 app.get("/note.html", function (req, res) {
-	const { room, notes } = req.body;
-	roomMessages[room] = notes ?? "";
+	const { room, note } = req.body;
+	roomMessages[room] = note ?? "";
 
-	console.log(`Room '${room}' note changed to ${notes}`);
+	console.log(`Room '${room}' note changed to ${note}`);
 
-	emitter.emit("room-change", "someone", "updated the notes for", room);
+	emitter.emit("room-change", "someone", "updated the note for", room);
 
 	res.status(200).end();
 });
@@ -380,7 +380,7 @@ app.get("/sse", async function (req, res) {
 								})),
 						  })
 						: ``,
-				notes: Notes({
+				note: Note({
 					name: zoom_room_name,
 					message: roomMessages[zoom_room_name] ?? "",
 				}),
