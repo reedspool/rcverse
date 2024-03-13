@@ -12,11 +12,15 @@ export const Page = ({ body, title }) => `
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/png" href="favicon.ico" />
     <style type="text/css" media="screen">
+      /* Reset */
+
       p {
         max-width: 60ch;
       }
 
       button { cursor: pointer; }
+
+      /* BEM */
 
       .participants {
         display: flex;
@@ -67,6 +71,8 @@ export const Page = ({ body, title }) => `
       .room__details {
         padding-top: 0.6em;
       }
+
+      /* Utilities */
 
       .display-contents {
         display: contents;
@@ -208,22 +214,28 @@ export const Room = ({
         </div>
     `;
 
-export const Note = ({ roomName, note }) =>
-  note ? EditNoteForm({ roomName, note }) : AddNoteButton({ roomName });
+export const Note = ({ roomName, note }) => NoteDisplay({ roomName, note });
+
+export const NoteDisplay = ({ roomName, note }) =>
+  `
+<div class="display-contents">
+  <div class="room__note">${note}</div>
+  <button hx-get="/note.html?roomName=${roomName}" hx-swap="outerHTML" hx-target="closest div">${
+    note ? "Edit note" : "Add note"
+  }</button>
+</div>
+`;
 
 export const EditNoteForm = ({ roomName, note }) =>
   `
-      <form method="POST" action="/note" hx-post="/note">
+      <form method="POST" action="/note" hx-post="/note" hx-swap="outerHTML">
           <input type="hidden" name="room" value="${roomName}">
           <label>Note
-              <textarea name="note" class="room__note">${note}</textarea>
+              <textarea name="note" class="room__edit-note">${note}</textarea>
           </label>
           <button type="submit">Update</button>
        </form>
 `;
-
-export const AddNoteButton = ({ roomName }) =>
-  `<button hx-get="/note.html?roomName=${roomName}" hx-swap="outerHTML">Add note</button>`;
 
 export const Participants = ({ participants }) =>
   `<div class="participants">${participants

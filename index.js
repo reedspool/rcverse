@@ -344,6 +344,13 @@ app.post("/note", function (req, res) {
 	res.status(200).end();
 });
 
+app.get("/editNote.html", function (req, res) {
+	const { roomName } = req.query;
+	const note = roomNameToNote[roomName] ?? "";
+
+	res.send(EditNoteForm({ roomName, note: note }));
+});
+
 app.get("/note.html", function (req, res) {
 	const { roomName } = req.query;
 	const note = roomNameToNote[roomName] ?? "";
@@ -385,7 +392,7 @@ app.get("/sse", async function (req, res) {
 					roomName,
 					note: roomNameToNote[roomName] ?? "",
 				}),
-				href: zoomRoomsByName[roomName],
+				...zoomRoomsByName[roomName],
 			}).replaceAll("\n", "")}\n\n`,
 		);
 	};
