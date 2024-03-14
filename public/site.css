@@ -1,4 +1,8 @@
-/* Reset */
+/* Reset / General */
+
+body {
+    padding-inline: 2rem;
+}
 
 p {
     max-width: 60ch;
@@ -46,18 +50,31 @@ summary {
 .room-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(65ch, 1fr));
-    grid-template-rows: 10em;
-    padding: 4rem 2rem;
 
-    gap: 0.4em;
+    gap: 1.6em;
 }
 
 .room {
-    padding: 0.4em;
+    margin-bottom: 0.4em;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .room:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.room__header {
+    background: linear-gradient(to right, #eee, #eee 80%, #fff);
+    padding: 0.4em;
+    border-top-left-radius: 0.4em;
+    border-top-right-radius: 0.4em;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.4em;
 }
 
 .room__title {
@@ -65,7 +82,23 @@ summary {
 }
 
 .room__details {
-    padding-top: 0.6em;
+    padding: 0.4em;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.4em;
+}
+
+.note-editor,
+.note-editor__form-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+}
+
+.note-editor__text-input {
+    width: 100%;
 }
 
 /* Utilities */

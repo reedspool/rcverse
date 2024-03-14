@@ -36,7 +36,7 @@ export const RootBody = ({ authenticated, rooms }) => {
 <p>RCVerse is a tool for all Recursers, in-batch and alum, remote and in-hub.</p>
 
 <p>
-We want to connect. We want tools to help connect us. We know how to build them. Let's do it!
+We want to connect. We want tools to help connect us. We know how to build them. Let's build them!
 </p>
 
 <p>
@@ -53,20 +53,17 @@ removing any friction which keeps it being as useful as it can be.
 </p>
 
 <p>
-To throw your idea at the project, slap it on the shared
-<a href="https://docs.google.com/document/d/1tLA_BjwM5k93WsMvNKT58kDb4Ksa9S6TFvGMAuK6Ldk/edit#heading=h.8rrvaio0w6r3">google doc</a>,
+To throw your idea at the project, make a PR to
+<a href="https://github.com/reedspool/rc-verse">the source code repository</a>.
+Or you could slap your thoughts on the shared
+ <a href="https://docs.google.com/document/d/1tLA_BjwM5k93WsMvNKT58kDb4Ksa9S6TFvGMAuK6Ldk/edit#heading=h.8rrvaio0w6r3">google doc</a>,
 or message the
 <a href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace">Zulip thread</a>,
 or message Reed Spool (W2'24) directly.
 </p>
 
 <p>
-Please message Reed Spool (W2'24) with your GitHub username to gain access to the
-<a href="https://github.com/reedspool/rc-verse">source code repository</a>.
-Do not hesitate, even if you don't want to contribute <em>now</em>,
-<strong>request now anyways</strong>.
-The repo is currently private out of fear for leaking Recurser information.
-Eventually we hope to make it open to everyone in the RC GitHub community.
+The site is now open source! Check it out on <a href="https://github.com/reedspool/rc-verse">GitHub</a>.
 </p>
 
 </details>
@@ -94,7 +91,7 @@ export const Room = ({
 }) => `
     <div sse-swap="room-update-${roomName}" hx-swap="outerHTML" class="display-contents">
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
-          <dt>
+          <dt class="room__header">
             <span class="room__title">${roomName}</span> <a
                   href="${roomHref}"
                   target="_blank"
@@ -124,12 +121,13 @@ export const NoteDisplay = ({ roomName, note }) =>
 
 export const EditNoteForm = ({ roomName, note }) =>
   `
-      <form method="POST" action="/note" hx-post="/note" hx-swap="none">
+      <form method="POST" action="/note" hx-post="/note" hx-swap="none" class="note-editor">
           <input type="hidden" name="room" value="${roomName}">
-          <label>Note
-              <textarea name="note" class="room__edit-note">${note}</textarea>
+          <label class="note-editor__form-item">
+              Note
+              <textarea name="note" class="note-editor__text-input">${note}</textarea>
           </label>
-          <button type="submit">Update</button>
+          <button type="submit">Update note</button>
        </form>
 `;
 
