@@ -68,7 +68,16 @@ The site is now open source! Check it out on <a href="https://github.com/reedspo
 
 </details>
         <dl class="room-list" hx-ext="sse" sse-connect="/sse">
-          ${rooms.map(Room).join("\n")}
+    ${rooms
+      .map(
+        (room) =>
+          `<div sse-swap="room-update-${
+            room.roomName
+          }" class="display-contents">
+        ${Room(room)}
+    </div>`,
+      )
+      .join("\n")}
         </dl>
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>
@@ -89,7 +98,6 @@ export const Room = ({
   participants,
   note = "",
 }) => `
-    <div sse-swap="room-update-${roomName}" hx-swap="outerHTML" class="display-contents">
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt class="room__header">
             <span class="room__title">${roomName}</span> <a
@@ -104,7 +112,6 @@ export const Room = ({
             ${Note({ roomName, note })}
           </dd>
         </div>
-    </div>
     `;
 
 export const Note = ({ roomName, note }) => NoteDisplay({ roomName, note });
