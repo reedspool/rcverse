@@ -7,14 +7,7 @@ import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
-import {
-	Page,
-	RootBody,
-	Room,
-	Participants,
-	Note,
-	EditNoteForm,
-} from "./html.js";
+import { Page, RootBody, Room, EditNoteForm } from "./html.js";
 
 const emitter = new EventEmitter();
 

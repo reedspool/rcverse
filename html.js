@@ -124,7 +124,7 @@ export const NoteDisplay = ({ roomName, note }) =>
 
 export const EditNoteForm = ({ roomName, note }) =>
   `
-      <form method="POST" action="/note" hx-post="/note" hx-swap="outerHTML">
+      <form method="POST" action="/note" hx-post="/note" hx-swap="none">
           <input type="hidden" name="room" value="${roomName}">
           <label>Note
               <textarea name="note" class="room__edit-note">${note}</textarea>
