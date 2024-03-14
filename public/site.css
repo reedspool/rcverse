@@ -1,0 +1,76 @@
+/* Reset */
+
+p {
+    max-width: 60ch;
+}
+
+button {
+    cursor: pointer;
+}
+
+dd {
+    margin-inline-start: 0px;
+}
+
+summary {
+    cursor: pointer;
+}
+
+/* BEM - See https://getbem.com/introduction/ */
+
+.participants {
+    display: flex;
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.participants__participant {
+    width: 2em;
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 99999px;
+    border: 4px solid forestgreen;
+}
+
+.participants__participant:not(:first-child) {
+    margin-right: -0.8em;
+}
+
+.empty-room-memo {
+    font-size: 0.8em;
+    font-style: italic;
+}
+
+.room-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(65ch, 1fr));
+    grid-template-rows: 10em;
+    padding: 4rem 2rem;
+
+    gap: 0.4em;
+}
+
+.room {
+    padding: 0.4em;
+}
+
+.room:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.room__title {
+    font-size: 1.4em;
+}
+
+.room__details {
+    padding-top: 0.6em;
+}
+
+/* Utilities */
+
+/* Remove from the box model, useful for HTMX utilities */
+.display-contents {
+    display: contents;
+}

@@ -11,73 +11,7 @@ export const Page = ({ body, title }) => `
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/png" href="favicon.ico" />
-    <style type="text/css" media="screen">
-      /* Reset */
-
-      p {
-        max-width: 60ch;
-      }
-
-      button { cursor: pointer; }
-
-      /* BEM */
-
-      .participants {
-        display: flex;
-        flex-direction: row-reverse;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        align-items: center;
-      }
-
-      .participants__participant {
-        width: 2em;
-        position: relative;
-        aspect-ratio: 1;
-        border-radius: 99999px;
-        border: 4px solid forestgreen;
-      }
-
-      .participants__participant:not(:first-child) {
-        margin-right: -0.8em;
-      }
-
-      .empty-room-memo {
-        font-size: 0.8em;
-        font-style: italic;
-      }
-
-      .room-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(65ch, 1fr));
-        padding: 4rem 2rem;
-
-        gap: 0.4em;
-      }
-
-      .room {
-        min-height: 10em;
-        padding: 0.4em;
-      }
-
-      .room:hover {
-        background-color: rgba(0,0,0,0.1);
-      }
-
-      .room__title {
-        font-size: 1.4em;
-      }
-
-      .room__details {
-        padding-top: 0.6em;
-      }
-
-      /* Utilities */
-
-      .display-contents {
-        display: contents;
-      }
-    </style>
+    <link rel="stylesheet" type="text/css" href="site.css" />
   </head>
   <body>
     ${body}
@@ -96,11 +30,6 @@ export const RootBody = ({ authenticated, rooms }) => {
 
   if (authenticated) {
     body += `
-<style>
-summary {
-  cursor: pointer;
-}
-</style>
 <details>
 <summary>About</summary>
 
