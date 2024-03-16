@@ -203,7 +203,7 @@ const adapter = new NodePostgresAdapter(sql, {
 const lucia = new Lucia(adapter, {
 	sessionExpiresIn: new TimeSpan(2, "w"),
 	sessionCookie: {
-		name: "lucia-auth-example",
+		name: "rcverse-session",
 		attributes: {
 			// set to `true` when using HTTPS
 			secure: process.env.NODE_ENV === "production",
