@@ -1,3 +1,9 @@
+/**
+ * Welcome to RCVerse's JavaScript server!
+ *
+ * Code comments are sparse, but you're welcome to add them as you learn about
+ * the system and make a PR!
+ */
 import { Lucia, verifyRequestOrigin, TimeSpan } from "lucia";
 import { OAuth2Client, generateState } from "oslo/oauth2";
 import { OAuth2RequestError } from "oslo/oauth2";
@@ -103,6 +109,10 @@ zoomRooms.forEach(({ roomName, ...rest }) => {
 	zoomRoomsByName[roomName] = { roomName, ...rest };
 });
 
+// NOTE: To test on the original host instead of the `recurse.com` proxy,
+//       change the production base domain to the domain of the host.
+//       You'll also need to change the OAuth Client ID and Client Secret to
+//       credentials which have the original host as the redirect URL.
 const baseDomain =
 	process.env.NODE_ENV === "production"
 		? `rcverse.recurse.com`
