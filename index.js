@@ -9,7 +9,9 @@ import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
 import { Page, RootBody, Room, EditNoteForm } from "./html.js";
 
+import fs from "node:fs";
 const emitter = new EventEmitter();
+const CERT_DIR = `./cert`;
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -109,6 +111,13 @@ const baseURL =
 	process.env.NODE_ENV === "production"
 		? `https://${baseDomain}`
 		: `http://${baseDomain}`;
+const sslConfig =
+	process.env.NODE_ENV === "production"
+		? {}
+		: {
+				key: fs.readFileSync(`${CERT_DIR}/server.key`),
+				cert: fs.readFileSync(`${CERT_DIR}/server.cert`),
+		  };
 
 const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
