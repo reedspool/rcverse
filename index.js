@@ -14,6 +14,7 @@ import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
 import { Page, RootBody, Room, EditNoteForm } from "./html.js";
+import expressWebsockets from "express-ws";
 
 import fs from "node:fs";
 const emitter = new EventEmitter();
@@ -22,7 +23,9 @@ const CERT_DIR = `./cert`;
 const app = express();
 const port = process.env.PORT || 3001;
 
-let currentSSEConnectionCount = 0;
+expressWebsockets(app);
+
+let currentWebsocketConnectionCount = 0;
 
 const zoomRooms = [
 	{
@@ -227,7 +230,7 @@ const lucia = new Lucia(adapter, {
 	},
 });
 app.use(express.urlencoded({ extended: true }));
-app.use((req, res, next) => {
+const corsMiddleware = (req, res, next) => {
 	if (req.method === "GET") {
 		return next();
 	}
@@ -249,13 +252,15 @@ app.use((req, res, next) => {
 	}
 
 	return next();
-});
+};
+app.use(corsMiddleware);
 
-app.use(async (req, res, next) => {
+const getSessionFromCookieMiddleware = async (req, res, next) => {
 	const sessionId = lucia.readSessionCookie(req.headers.cookie ?? "");
+	req.locals = {};
 	if (!sessionId) {
-		res.locals.user = null;
-		res.locals.session = null;
+		req.locals.user = null;
+		req.locals.session = null;
 		return next();
 	}
 
@@ -272,26 +277,24 @@ app.use(async (req, res, next) => {
 			lucia.createBlankSessionCookie().serialize(),
 		);
 	}
-	res.locals.user = user;
-	res.locals.session = session;
+	req.locals.user = user;
+	req.locals.session = session;
 	return next();
-});
+};
+app.use(getSessionFromCookieMiddleware);
 
-// TODO I don't know where to write this
-// Client could lose SSE connection for a long time, like if they close their laptop
-// HTMX is going to try to reconnect immediately, but it doesn't do anything
-// to refresh the whole page to get a real understanding of the current world,
-//  instead it will just start updating from the next stream evenst, and it could
-// be completley wrong about where everyone is currenlty
+const isSessionAuthenticatedMiddleware = async (req, res, next) => {
+	if (!req.locals.session) return next();
 
-app.get("/", async (req, res) => {
-	let authenticated = false;
-	if (res.locals.session?.refresh_token) {
+	// NOTE: If you're confused about why you're never logged in
+	//       It's probably this line and there's probably an error above.
+	req.locals.authenticated = false;
+	if (req.locals.session?.refresh_token) {
 		try {
 			// Again the oslo docs are wrong, or at least inspecific.
 			// Source don't lie, though! https://github.com/pilcrowOnPaper/oslo/blob/main/src/oauth2/index.ts#L76
 			const { access_token, refresh_token } = await client.refreshAccessToken(
-				res.locals.session?.refresh_token,
+				req.locals.session?.refresh_token,
 				{
 					credentials: clientSecret,
 					authenticateWith: "request_body",
@@ -304,29 +307,45 @@ app.get("/", async (req, res) => {
 
 			await sql.query(
 				"update user_session set refresh_token = $1 where id = $2",
-				[refresh_token, res.locals.session?.id],
+				[refresh_token, req.locals.session?.id],
 			);
 
-			authenticated = true;
+			req.locals.authenticated = true;
+			return next();
 		} catch (e) {
 			if (e instanceof OAuth2RequestError) {
 				// see https://www.rfc-editor.org/rfc/rfc6749#section-5.2
 				const { request, message, description } = e;
 
 				if (message === "invalid_grant") {
-					console.log("The following error is a totally normal invalid grant");
+					console.log(
+						"A user's authentication was rejected due to an invalid grant.",
+					);
+					return next();
 				}
 			}
 
 			console.error("Invalidating old session due to error", e);
-			await lucia.invalidateSession(res.locals.session?.id);
+			await lucia.invalidateSession(req.locals.session?.id);
 			res.appendHeader(
 				"Set-Cookie",
 				lucia.createBlankSessionCookie().serialize(),
 			);
+			return next();
 		}
 	}
+};
 
+app.use(isSessionAuthenticatedMiddleware);
+
+// TODO I don't know where to write this
+// Client could lose Websocket connection for a long time, like if they close their laptop
+// HTMX is going to try to reconnect immediately, but it doesn't do anything
+// to refresh the whole page to get a real understanding of the current world,
+//  instead it will just start updating from the next stream evenst, and it could
+// be completley wrong about where everyone is currenlty
+
+app.get("/", async (req, res) => {
 	res.send(
 		// TODO: Cache an authenticated version and an unauthenticated version
 		//       and only invalidate that cache when a zoom room update occurs
@@ -335,7 +354,7 @@ app.get("/", async (req, res) => {
 			title: "RCVerse",
 			body: RootBody(
 				transformInternalsToWhatTheRootBodyHtmlRendererNeeds({
-					authenticated,
+					authenticated: req.locals.authenticated,
 					zoomRooms,
 					roomNameToParticipantNames,
 					participantNameToEntity,
@@ -417,58 +436,41 @@ const transformInternalsToWhatTheSingleRoomHtmlRendererNeeds = ({
 	};
 };
 
-app.get("/sse", async function (req, res) {
-	res.set({
-		"Cache-Control": "no-cache",
-		"Content-Type": "text/event-stream",
-		Connection: "keep-alive",
-	});
-	res.status(200);
-	res.flushHeaders();
-
-	// Tell the client to retry every 10 seconds if connectivity is lost
-	res.write("retry: 10000\n\n");
-
+app.ws("/websocket", async function (ws, req) {
 	// NOTE: Only use async listeners, so that each listener doesn't block.
 	const listener = async (participantName, action, roomName) => {
-		res.write(`event:room-update-${roomName}\n`);
-		res.write(
-			Room(
-				transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
-					roomName,
-					roomHref: zoomRoomsByName[roomName].href,
-					roomNameToNote,
-					roomNameToParticipantNames,
-					participantNameToEntity,
-				}),
-			)
-				.split("\n")
-				.map((line) => `data:${line}`)
-				.join("\n"),
+		const roomId = `room-update-${roomName}`;
+		const roomContent = Room(
+			transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
+				roomName,
+				roomHref: zoomRoomsByName[roomName].href,
+				roomNameToNote,
+				roomNameToParticipantNames,
+				participantNameToEntity,
+			}),
 		);
-		res.write("\n\n"); // Must end with `\n\n`
+		ws.send(`<div id="${roomId}">${roomContent}</div>`);
 	};
 	// TODO: For some reason this code stops the server from exiting clearly on Control-C (Signal Interrupt)
 	//       Maybe we can listen for the event of SIG INT and manually call res.end on every res that still has an event emitter?
 
 	emitter.on("room-change", listener);
-	currentSSEConnectionCount++;
+	currentWebsocketConnectionCount++;
 	console.log(
-		`There are currently ${currentSSEConnectionCount} SSE connections`,
+		`There are currently ${currentWebsocketConnectionCount} WS connections`,
 	);
 	// If client closes connection, stop sending events
-	res.on("close", () => {
+	ws.on("close", () => {
 		emitter.off("room-change", listener);
-		currentSSEConnectionCount--;
+		currentWebsocketConnectionCount--;
 		console.log(
-			`There are currently ${currentSSEConnectionCount} SSE connections`,
+			`There are currently ${currentWebsocketConnectionCount} WS connections`,
 		);
-		res.end();
 	});
 });
 
 app.get("/logout", async (req, res) => {
-	lucia.invalidateSession(res.locals.session?.id);
+	lucia.invalidateSession(req.locals.session?.id);
 
 	res.redirect("/");
 });
@@ -530,7 +532,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 
 		// Also update the local copy of the session since the middleware might not run?
 		// TODO Try removing this and see if it still works
-		res.locals.session = session;
+		req.locals.session = session;
 		res.redirect("/");
 		return;
 	} catch (e) {
@@ -540,7 +542,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 		}
 		// unknown error
 		console.error("Invalidating new session due to error", e);
-		await lucia.invalidateSession(res.locals.session?.id);
+		await lucia.invalidateSession(req.locals.session?.id);
 		res.appendHeader(
 			"Set-Cookie",
 			lucia.createBlankSessionCookie().serialize(),

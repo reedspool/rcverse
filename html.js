@@ -17,16 +17,7 @@ export const Page = ({ body, title }) => `
     ${body}
 
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
-    <script>
-      // Fix for Firefox 'The connection to ... was interrupted while the page was loading.'
-      // See https://github.com/bigskysoftware/htmx/pull/2005#issuecomment-2002136978
-      globalThis.addEventListener("beforeunload", () =>
-        document
-          .querySelectorAll("[sse-connect]")
-          .forEach((elt) => elt["htmx-internal-data"].sseEventSource.close()),
-      );
-    </script>
+    <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
   </body>
 </html>
 `;
@@ -76,15 +67,13 @@ The site is now open source! Check it out on <a href="https://github.com/reedspo
 </p>
 
 </details>
-        <dl class="room-list" hx-ext="sse" sse-connect="/sse">
+        <dl class="room-list" hx-ext="ws" ws-connect="/websocket">
     ${rooms
       .map(
         (room) =>
-          `<div sse-swap="room-update-${
-            room.roomName
-          }" class="display-contents">
-        ${Room(room)}
-    </div>`,
+          `<div id="room-update-${room.roomName}" class="display-contents">
+            ${Room(room)}
+          </div>`,
       )
       .join("\n")}
         </dl>
