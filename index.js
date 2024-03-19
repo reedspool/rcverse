@@ -17,6 +17,24 @@ import { Page, RootBody, Room, EditNoteForm } from "./html.js";
 import expressWebsockets from "express-ws";
 
 import fs from "node:fs";
+
+// Catch and snuff all uncaught exceptions and uncaught promise rejections.
+// We can manually restart the server if it gets into a bad state, but we want
+// to preserve the weirdness for as long as possible.
+process.on("uncaughtException", function (err) {
+	console.error("Top-level uncaught exception: " + err, err);
+});
+process.on("unhandledRejection", function (err, promise) {
+	console.error(
+		"Top level unhandled rejection (promise: ",
+		promise,
+		", reason: ",
+		err,
+		").",
+		err,
+	);
+});
+
 const emitter = new EventEmitter();
 const CERT_DIR = `./cert`;
 
