@@ -134,13 +134,18 @@ const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
 const tokenEndpoint = "https://www.recurse.com/oauth/token";
 
-// DO NOT COMMIT
 // From https://www.recurse.com/settings/apps
 const clientId = process.env.OAUTH_CLIENT_ID;
 const clientSecret = process.env.OAUTH_CLIENT_SECRET;
+
 const postgresConnection = process.env.POSTGRES_CONNECTION;
+
+// From https://recurse.rctogether.com/apps
 const actionCableAppId = process.env.ACTION_CABLE_APP_ID;
 const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
+
+// Special auth token (primarily for RCTV)
+const secretAuthToken = process.env.SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE;
 
 const roomNameToParticipantNames = {};
 const participantNameToEntity = {};
@@ -282,7 +287,13 @@ const getSessionFromCookieMiddleware = async (req, res, next) => {
 app.use(getSessionFromCookieMiddleware);
 
 const isSessionAuthenticatedMiddleware = async (req, res, next) => {
-	if (!req.locals.session) return next();
+	const { token } = req.query;
+	if (!req.locals.session && !token) return next();
+
+	if (token === secretAuthToken) {
+		req.locals.authenticated = true;
+		return next();
+	}
 
 	// NOTE: If you're confused about why you're never logged in
 	//       It's probably this line and there's probably an error above.

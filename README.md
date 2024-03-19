@@ -48,3 +48,7 @@ CREATE TABLE user_session (
 ## RCTogether API (ActionCable)
 
 Go to https://recurse.rctogether.com/apps and make a new application, then plug in your App ID and App secret into `ACTION_CABLE_APP_ID` and `ACTION_CABLE_APP_SECRET` in your `config.env`.
+
+## Super Secret Auth Bypass Token
+
+In `config.env.template` you will see `SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE`. This is used to bypass authentication for the special case where a kiosk like RCTV needs a hard-coded authentication instead of RC OAuth. This should only be used for local testing or in the case of a kiosk, it should never be stored in plain text or be visible to anyone in plain text. RCTV will hide this specific URL to hide this token. `crypto.randomUUID()` is a good way to make a new UUID for this purpose. Maybe prepend a signifier like `rctv-` to the UUID produced, so if it gets leaked you have some inkling where its from.
