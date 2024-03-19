@@ -502,9 +502,14 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 	const cookieState = cookies.get(oauthStateCookieName);
 
 	if (!cookieState || !state || cookieState !== state) {
-		// TODO: Don't crash the server!
 		console.error("State didn't match", { cookieState, state });
-		throw new Error("State didn't match");
+		await lucia.invalidateSession(req.locals.session?.id);
+		res.appendHeader(
+			"Set-Cookie",
+			lucia.createBlankSessionCookie().serialize(),
+		);
+		res.redirect("/");
+		return;
 	}
 
 	try {
