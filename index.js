@@ -25,8 +25,6 @@ const port = process.env.PORT || 3001;
 
 expressWebsockets(app);
 
-let currentWebsocketConnectionCount = 0;
-
 const zoomRooms = [
 	{
 		href: "https://recurse.com/zoom/aegis",
@@ -334,9 +332,9 @@ const isSessionAuthenticatedMiddleware = async (req, res, next) => {
 			return next();
 		}
 	}
-};
 
-app.use(isSessionAuthenticatedMiddleware);
+	return next();
+};
 
 // TODO I don't know where to write this
 // Client could lose Websocket connection for a long time, like if they close their laptop
@@ -345,7 +343,7 @@ app.use(isSessionAuthenticatedMiddleware);
 //  instead it will just start updating from the next stream evenst, and it could
 // be completley wrong about where everyone is currenlty
 
-app.get("/", async (req, res) => {
+app.get("/", isSessionAuthenticatedMiddleware, async (req, res) => {
 	res.send(
 		// TODO: Cache an authenticated version and an unauthenticated version
 		//       and only invalidate that cache when a zoom room update occurs
@@ -365,8 +363,44 @@ app.get("/", async (req, res) => {
 	);
 });
 
+app.ws("/websocket", async function (ws, req) {
+	// TODO: Split up authentication mechanism instead of calling it with these
+	//       fake res and next
+	await isSessionAuthenticatedMiddleware(
+		req,
+		{ appendHeader: () => {} },
+		() => {},
+	);
+	if (!req.locals.authenticated) {
+		ws.send("I'm afraid I can't do that Hal");
+		ws.close();
+		return;
+	}
+	// NOTE: Only use async listeners, so that each listener doesn't block.
+	const listener = async (participantName, action, roomName) => {
+		const roomId = `room-update-${roomName}`;
+		const roomContent = Room(
+			transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
+				roomName,
+				roomHref: zoomRoomsByName[roomName].href,
+				roomNameToNote,
+				roomNameToParticipantNames,
+				participantNameToEntity,
+			}),
+		);
+		ws.send(`<div id="${roomId}">${roomContent}</div>`);
+	};
+
+	emitter.on("room-change", listener);
+
+	// If client closes connection, stop sending events
+	ws.on("close", () => {
+		emitter.off("room-change", listener);
+	});
+});
+
 const roomNameToNote = {};
-app.post("/note", function (req, res) {
+app.post("/note", isSessionAuthenticatedMiddleware, function (req, res) {
 	const { room, note } = req.body;
 	roomNameToNote[room] = note ?? "";
 
@@ -377,14 +411,7 @@ app.post("/note", function (req, res) {
 	res.status(200).end();
 });
 
-app.get("/editNote.html", function (req, res) {
-	const { roomName } = req.query;
-	const note = roomNameToNote[roomName] ?? "";
-
-	res.send(EditNoteForm({ roomName, note: note }));
-});
-
-app.get("/note.html", function (req, res) {
+app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
 	const { roomName } = req.query;
 	const note = roomNameToNote[roomName] ?? "";
 
@@ -435,39 +462,6 @@ const transformInternalsToWhatTheSingleRoomHtmlRendererNeeds = ({
 			})) ?? [],
 	};
 };
-
-app.ws("/websocket", async function (ws, req) {
-	// NOTE: Only use async listeners, so that each listener doesn't block.
-	const listener = async (participantName, action, roomName) => {
-		const roomId = `room-update-${roomName}`;
-		const roomContent = Room(
-			transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
-				roomName,
-				roomHref: zoomRoomsByName[roomName].href,
-				roomNameToNote,
-				roomNameToParticipantNames,
-				participantNameToEntity,
-			}),
-		);
-		ws.send(`<div id="${roomId}">${roomContent}</div>`);
-	};
-	// TODO: For some reason this code stops the server from exiting clearly on Control-C (Signal Interrupt)
-	//       Maybe we can listen for the event of SIG INT and manually call res.end on every res that still has an event emitter?
-
-	emitter.on("room-change", listener);
-	currentWebsocketConnectionCount++;
-	console.log(
-		`There are currently ${currentWebsocketConnectionCount} WS connections`,
-	);
-	// If client closes connection, stop sending events
-	ws.on("close", () => {
-		emitter.off("room-change", listener);
-		currentWebsocketConnectionCount--;
-		console.log(
-			`There are currently ${currentWebsocketConnectionCount} WS connections`,
-		);
-	});
-});
 
 app.get("/logout", async (req, res) => {
 	lucia.invalidateSession(req.locals.session?.id);
@@ -567,6 +561,7 @@ app.use(function (req, res) {
 	res.status(404);
 	res.send("404");
 });
+
 const listener = app.listen(port, () => {
 	console.log(`Server is available at ${baseURL}`);
 });
