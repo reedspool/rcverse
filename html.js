@@ -93,14 +93,7 @@ href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
 </details>
 
         <dl class="room-list" hx-ext="ws" ws-connect="/websocket">
-    ${rooms
-      .map(
-        (room) =>
-          `<div id="room-update-${room.roomName}" class="display-contents">
-            ${Room(room)}
-          </div>`,
-      )
-      .join("\n")}
+    ${rooms.map((room) => Room(room)).join("\n")}
         </dl>
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>
@@ -121,6 +114,10 @@ export const Room = ({
   participants,
   note = "",
 }) => `
+      <div id="room-update-${roomName.replaceAll(
+        " ",
+        "-",
+      )}" class="display-contents">
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt class="room__header">
             <span class="room__title">${roomName}</span> <a
@@ -135,6 +132,7 @@ export const Room = ({
             ${Note({ roomName, note })}
           </dd>
         </div>
+      </div>
     `;
 
 export const Note = ({ roomName, note }) => NoteDisplay({ roomName, note });
@@ -155,7 +153,7 @@ export const EditNoteForm = ({ roomName, note }) =>
           <input type="hidden" name="room" value="${roomName}">
           <label class="note-editor__form-item">
               Note
-              <textarea name="note" class="note-editor__text-input">${note}</textarea>
+              <textarea name="note" class="note-editor__text-input" cols="33" rows="5">${note}</textarea>
           </label>
           <button type="submit">Update note</button>
        </form>

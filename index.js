@@ -389,17 +389,17 @@ app.ws("/websocket", async function (ws, req) {
 	}
 	// NOTE: Only use async listeners, so that each listener doesn't block.
 	const listener = async (participantName, action, roomName) => {
-		const roomId = `room-update-${roomName}`;
-		const roomContent = Room(
-			transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
-				roomName,
-				roomHref: zoomRoomsByName[roomName].href,
-				roomNameToNote,
-				roomNameToParticipantNames,
-				participantNameToEntity,
-			}),
+		ws.send(
+			Room(
+				transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
+					roomName,
+					roomHref: zoomRoomsByName[roomName].href,
+					roomNameToNote,
+					roomNameToParticipantNames,
+					participantNameToEntity,
+				}),
+			),
 		);
-		ws.send(`<div id="${roomId}">${roomContent}</div>`);
 	};
 
 	emitter.on("room-change", listener);
