@@ -67,6 +67,31 @@ The site is now open source! Check it out on <a href="https://github.com/reedspo
 </p>
 
 </details>
+<details>
+<summary>⚠ XSS vulnerability for fun and profit </summary>
+
+<p>This site has a XSS vulnerability. That means you can inject code which will
+be run when other people load the page in their browser. Don't know what that
+means? See if you can figure it out. Google's your friend. Ask other recursers.
+Poke around.</p>
+
+<p>You can inject CSS with a <code>style</code> tag or JavaScript with a
+<code>script</code> tag.</p>
+
+<p>Please be kind. Do not use blocking JS (like <code>alert</code>) or CSS which
+makes the page (totally) unreadable. If you're writing a loop, maybe test that
+out on a test HTML page first so that you don't crash this page for others.</p>
+
+<p>Currently <a
+href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace/near/426768844">room
+notes are ephemeral</a>. They are likely to disappear any time. So if you make a
+note you like, take a screenshot and post your code in the zulip thread! Later,
+you or someone else can reapply the change.</p>
+
+<p>Made something you think should be permanent? <a
+href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
+</details>
+
         <dl class="room-list" hx-ext="ws" ws-connect="/websocket">
     ${rooms
       .map(
