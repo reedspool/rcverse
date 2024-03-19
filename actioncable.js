@@ -3,13 +3,18 @@ import ActionCable from "actioncable-nodejs/src/actioncable.js";
 // TODO: I'm going to crash the server if I ever get a second world message
 //       at this early stage of development because I really want tok now if that
 //       ever happens. This can be a console log later
-let hasSeenWorldData = false;
+let hasSeenWorldDataWithoutReconnect = false;
 export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
   const uri = `wss://recurse.rctogether.com/cable?app_id=${APP_ID}&app_secret=${APP_SECRET}`;
 
   let cable = new ActionCable(uri, {
     origin: "https://example.rctogether.com",
   });
+
+  function reconnect() {
+    hasSeenWorldDataWithoutReconnect = false;
+    connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback);
+  }
 
   return cable.subscribe("ApiChannel", {
     connected() {
@@ -18,19 +23,24 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
 
     disconnected() {
       // TODO Implement reconnection and simply let the user know the data's out of date
-      throw new Error("ActionCable RC Together API stream disconnected");
+      console.error("ActionCable RC Together API stream disconnected");
+      console.error("Scheduling reconnect in 10 seconds");
+      setTimeout(reconnect, 10 * 1000);
     },
 
     rejected() {
-      throw new Error("ActionCable RC Together API stream unable to connect");
+      console.error("ActionCable RC Together API stream disconnected");
+      console.error("Scheduling reconnect in 10 seconds");
+      setTimeout(reconnect, 10 * 1000);
     },
 
     received({ type, payload }) {
       if (type === "world") {
         // Parse the initial dump of world data
-        // console.log(JSON.stringify(payload, null, 2));
-        if (hasSeenWorldData) throw new Error("Saw world data twice");
-        hasSeenWorldData = true;
+        if (hasSeenWorldDataWithoutReconnect)
+          // This is just a bit confusing but not that problematic
+          console.error("Saw world data twice without a reconnect");
+        hasSeenWorldDataWithoutReconnect = true;
         payload.entities.forEach((entity) => {
           const {
             type,
