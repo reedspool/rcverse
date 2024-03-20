@@ -35,8 +35,8 @@ process.on("unhandledRejection", function (err, promise) {
 	);
 });
 
+// Create an event emitter to handle cross-cutting communications
 const emitter = new EventEmitter();
-const CERT_DIR = `./cert`;
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -140,12 +140,15 @@ const baseURL =
 	process.env.NODE_ENV === "production"
 		? `https://${baseDomain}`
 		: `http://${baseDomain}`;
+
+// Currently unused self-signed SSL certs. Use `npm run generate-cert` to create
+// these files
 const sslConfig =
 	process.env.NODE_ENV === "production"
 		? {}
 		: {
-				key: fs.readFileSync(`${CERT_DIR}/server.key`),
-				cert: fs.readFileSync(`${CERT_DIR}/server.cert`),
+				key: fs.readFileSync(`./cert/server.key`),
+				cert: fs.readFileSync(`./cert/server.cert`),
 		  };
 
 const authorizeEndpoint = "https://recurse.com/oauth/authorize";
@@ -176,7 +179,7 @@ const participantNameToEntity = {};
 //     I'm guessing it will not show the person in the room, because we also observed
 //     the little bubble in Virutal RC didn't show that person as in the room
 connect(actionCableAppId, actionCableAppSecret, (entity) => {
-	const { roomName, participantName, faceMarkerImagePath } = entity;
+	let { roomName, participantName, faceMarkerImagePath } = entity;
 
 	if (roomName !== null && !zoomRoomNames.includes(roomName)) {
 		// TODO don't kill the server but be loud about this confusion in the future
@@ -185,8 +188,10 @@ connect(actionCableAppId, actionCableAppSecret, (entity) => {
 	}
 
 	// zoom_room is a string means we're adding a person to that room
+	const previousRoomName = participantNameToEntity[participantName]?.roomName;
+	let verb;
 	if (roomName) {
-		if (participantNameToEntity[participantName]?.roomName === roomName) {
+		if (previousRoomName === roomName) {
 			// Ignore, we already have this person in the right zoom room
 			return;
 		}
@@ -195,35 +200,47 @@ connect(actionCableAppId, actionCableAppSecret, (entity) => {
 		}
 
 		roomNameToParticipantNames[roomName].push(participantName);
+
 		participantNameToEntity[participantName] = {
 			roomName,
 			faceMarkerImagePath,
 		};
-		console.log(`${participantName} enterred ${roomName}`);
-		emitter.emit("room-change", participantName, "enterred", roomName);
+
+		verb = "enterred";
 	} else {
-		if (!participantNameToEntity[participantName]?.roomName) {
+		if (typeof previousRoomName === "undefined" || !previousRoomName) {
 			// Ignore, nothing to update, they're still not in a zoom room
 			return;
 		}
-		const { roomName: previous } = participantNameToEntity[participantName];
+
+		// Remove them from their previous room
+		if (previousRoomName) {
+			roomNameToParticipantNames[previousRoomName] = roomNameToParticipantNames[
+				previousRoomName
+			].filter((name) => name !== participantName);
+		}
 
 		participantNameToEntity[participantName] = {
 			roomName,
 			faceMarkerImagePath,
 		};
-		roomNameToParticipantNames[previous] = roomNameToParticipantNames[
-			previous
-		].filter((name) => name !== participantName);
 
-		console.log(`${participantName} departed ${previous}`);
-		emitter.emit("room-change", participantName, "departed", previous);
+		verb = "departed";
+		roomName = previousRoomName;
 	}
+
+	console.log(`${participantName} ${verb} ${roomName}`);
+	emitter.emit("room-change", participantName, verb, roomName);
 });
 
-const client = new OAuth2Client(clientId, authorizeEndpoint, tokenEndpoint, {
-	redirectURI: `${baseURL}/myOauth2RedirectUri`,
-});
+const oauthClient = new OAuth2Client(
+	clientId,
+	authorizeEndpoint,
+	tokenEndpoint,
+	{
+		redirectURI: `${baseURL}/myOauth2RedirectUri`,
+	},
+);
 
 const sql = new pg.Pool({
 	connectionString: postgresConnection,
@@ -320,13 +337,14 @@ const isSessionAuthenticatedMiddleware = async (req, res, next) => {
 		try {
 			// Again the oslo docs are wrong, or at least inspecific.
 			// Source don't lie, though! https://github.com/pilcrowOnPaper/oslo/blob/main/src/oauth2/index.ts#L76
-			const { access_token, refresh_token } = await client.refreshAccessToken(
-				req.locals.session?.refresh_token,
-				{
-					credentials: clientSecret,
-					authenticateWith: "request_body",
-				},
-			);
+			const { access_token, refresh_token } =
+				await oauthClient.refreshAccessToken(
+					req.locals.session?.refresh_token,
+					{
+						credentials: clientSecret,
+						authenticateWith: "request_body",
+					},
+				);
 
 			// const a = await fetch("https://www.recurse.com/api/v1/profiles");
 
@@ -487,7 +505,8 @@ const transformInternalsToWhatTheSingleRoomHtmlRendererNeeds = ({
 			roomNameToParticipantNames[roomName]?.map((participantName) => ({
 				participantName,
 				faceMarkerImagePath:
-					participantNameToEntity[participantName].faceMarkerImagePath,
+					participantNameToEntity[participantName]?.faceMarkerImagePath ??
+					"recurse-community-bot.png",
 			})) ?? [],
 	};
 };
@@ -506,7 +525,7 @@ app.get("/getAuthorizationUrl", async (req, res) => {
 		new Cookie(oauthStateCookieName, state).serialize(),
 	);
 
-	const url = await client.createAuthorizationURL({
+	const url = await oauthClient.createAuthorizationURL({
 		state,
 		scope: ["user:email"],
 	});
@@ -533,7 +552,7 @@ app.get("/myOauth2RedirectUri", async (req, res) => {
 	try {
 		// NOTE: This is different from the Oslo OAuth2 docs, they use camel case
 		const { access_token, refresh_token } =
-			await client.validateAuthorizationCode(code, {
+			await oauthClient.validateAuthorizationCode(code, {
 				credentials: clientSecret,
 				authenticateWith: "request_body",
 			});
