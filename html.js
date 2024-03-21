@@ -22,10 +22,15 @@ export const Page = ({ body, title }) => `
 </html>
 `;
 
-export const RootBody = ({ authenticated, rooms }) => {
-  let body = `<h1>RCVerse</h1>`;
-  body += `
-<h2>Whatever you make it</h2>
+export const RootBody = ({
+  authenticated,
+  rooms,
+  myCustomization,
+  otherCustomizations,
+}) => {
+  let body = `<main  hx-ext="ws" ws-connect="/websocket">`;
+  body += `<h1>RCVerse</h1>`;
+  body += `<h2>Whatever you make it</h2>
   `;
 
   if (authenticated) {
@@ -68,7 +73,10 @@ The site is now open source! Check it out on <a href="https://github.com/reedspo
 
 </details>
 <details>
-<summary>⚠ XSS vulnerability for fun and profit </summary>
+<summary>⚠ XSS vulnerability <strong>moved south</strong> for greener pastures!</summary>
+
+<p>There's a new section in town, "Custom Code", at the bototm of the page.
+All room notes are now properly HTML escaped.</p>
 
 <p>This site has a XSS vulnerability. That means you can inject code which will
 be run when other people load the page in their browser. Don't know what that
@@ -83,18 +91,49 @@ makes the page (totally) unreadable. If you're writing a loop, maybe test that
 out on a test HTML page first so that you don't crash this page for others.</p>
 
 <p>Currently <a
-href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace/near/426768844">room
-notes are ephemeral</a>. They are likely to disappear any time. So if you make a
-note you like, take a screenshot and post your code in the zulip thread! Later,
+href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace/near/426768844">
+custom code is ephemeral</a>. Changes are likely to disappear any time. So if you make a
+change you like, take a screenshot and post your code in the zulip thread! Later,
 you or someone else can reapply the change.</p>
 
 <p>Made something you think should be permanent? <a
 href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
 </details>
 
-        <dl class="room-list" hx-ext="ws" ws-connect="/websocket">
-    ${rooms.map((room) => Room(room)).join("\n")}
-        </dl>
+<dl class="room-list">
+${rooms.map(Room).join("\n")}
+</dl>
+
+<hl>
+
+<h2>Custom code</h2>
+
+<dl class="customization-list">
+${
+  myCustomization
+    ? Customization(myCustomization)
+    : `
+    <div>
+              <button
+                hx-get="/editCustomization.html"
+                hx-swap="outerHTML"
+                hx-target="closest div"
+              >Add your customization</button>
+</div>
+      <p style="border: 1px solid red; padding: 0.4em;">
+      <strong>Note</strong> After you hit Update you'll need to
+      refresh the page, just this first time (and hopefully I'll fix this bug first)
+      </strong></p>
+    `
+}
+${
+  otherCustomizations.length === 0
+    ? ""
+    : otherCustomizations.map(Customization).join("\n")
+}
+</dl>
+
+<hl>
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>
     `;
@@ -103,6 +142,8 @@ href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
       <p><a href="/getAuthorizationUrl">Login</a></p>
         `;
   }
+
+  body += `</main>`;
 
   return body;
 };
@@ -169,3 +210,54 @@ export const Participant = ({ participantName, faceMarkerImagePath }) =>
       src=${faceMarkerImagePath}
       title="${participantName}">
   `;
+
+export const Customization = ({
+  rcUserId,
+  rcPersonName,
+  code,
+  isMine,
+  isEmpty,
+  isNew,
+}) => `
+      <div id="customization-update-${String(rcUserId).replaceAll(
+        " ",
+        "-",
+      )}" class="display-contents">
+        <div class="customization ${isEmpty ? "customization--non-empty" : ""}">
+          <dt class="customization__header">
+            <span class="customization__title">${
+              isMine
+                ? `<strong>My Code (${rcPersonName})</strong>`
+                : `${rcPersonName}'s Code`
+            }</span>
+          </dt>
+          <dd class="customization__code">
+            <div class="display-contents">
+              <pre class="customization__code-preformatted">
+                <code>${code}</code>
+              </pre>
+              ${
+                isMine
+                  ? `<button
+                       hx-get="/editCustomization.html"
+                       hx-swap="outerHTML"
+                       hx-target="closest div"
+                     >Edit code</button>`
+                  : ``
+              }
+            </div>
+          </dd>
+        </div>
+      </div>
+    `;
+
+export const EditCustomizationCodeForm = ({ code }) =>
+  `
+      <form method="POST" action="/customization" hx-post="/customization" hx-swap="none" class="customization-editor">
+          <label class="customization-editor__form-item">
+              Code
+              <textarea name="code" class="customization-editor__text-input" cols="60" rows="20">${code}</textarea>
+          </label>
+          <button type="submit">Update</button>
+       </form>
+`;

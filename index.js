@@ -13,7 +13,14 @@ import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
-import { Page, RootBody, Room, EditNoteForm } from "./html.js";
+import {
+	Page,
+	RootBody,
+	Room,
+	EditNoteForm,
+	EditCustomizationCodeForm,
+	Customization,
+} from "./html.js";
 import expressWebsockets from "express-ws";
 
 import fs from "node:fs";
@@ -350,16 +357,13 @@ const isSessionAuthenticatedMiddleware = async (req, res, next) => {
 					},
 				);
 
-			// const a = await fetch("https://www.recurse.com/api/v1/profiles");
-
-			// console.log(await a.json());
-
 			await sql.query(
 				"update user_session set refresh_token = $1 where id = $2",
 				[refresh_token, req.locals.session?.id],
 			);
 
 			req.locals.authenticated = true;
+			req.locals.access_token = access_token;
 			return next();
 		} catch (e) {
 			if (e instanceof OAuth2RequestError) {
@@ -387,6 +391,24 @@ const isSessionAuthenticatedMiddleware = async (req, res, next) => {
 	return next();
 };
 
+const getRcUserMiddleware = async (req, res, next) => {
+	if (!req.locals?.authenticated || !req.locals.access_token) return next();
+
+	const fetchResponse = await fetch(
+		"https://www.recurse.com/api/v1/profiles/me",
+		{
+			headers: {
+				Authorization: `Bearer ${req.locals.access_token}`,
+			},
+		},
+	);
+
+	const json = await fetchResponse.json();
+	req.locals.rcPersonName = json.name;
+	req.locals.rcUserId = String(json.id);
+	return next();
+};
+
 // TODO I don't know where to write this
 // Client could lose Websocket connection for a long time, like if they close their laptop
 // HTMX is going to try to reconnect immediately, but it doesn't do anything
@@ -394,25 +416,32 @@ const isSessionAuthenticatedMiddleware = async (req, res, next) => {
 //  instead it will just start updating from the next stream evenst, and it could
 // be completley wrong about where everyone is currenlty
 
-app.get("/", isSessionAuthenticatedMiddleware, async (req, res) => {
-	res.send(
-		// TODO: Cache an authenticated version and an unauthenticated version
-		//       and only invalidate that cache when a zoom room update occurs
-		// ACTUALLY we can cache each room too! And only invalidate them when a room change occurs
-		Page({
-			title: "RCVerse",
-			body: RootBody(
-				transformInternalsToWhatTheRootBodyHtmlRendererNeeds({
-					authenticated: req.locals.authenticated,
-					zoomRooms,
-					roomNameToParticipantNames,
-					participantNameToEntity,
-					roomNameToNote,
-				}),
-			),
-		}),
-	);
-});
+app.get(
+	"/",
+	isSessionAuthenticatedMiddleware,
+	getRcUserMiddleware,
+	async (req, res) => {
+		res.send(
+			// TODO: Cache an authenticated version and an unauthenticated version
+			//       and only invalidate that cache when a zoom room update occurs
+			// ACTUALLY we can cache each room too! And only invalidate them when a room change occurs
+			Page({
+				title: "RCVerse",
+				body: RootBody(
+					mungeRootBody({
+						authenticated: req.locals.authenticated,
+						zoomRooms,
+						roomNameToParticipantNames,
+						participantNameToEntity,
+						roomNameToNote,
+						rcUserIdToCustomization,
+						myRcUserId: req.locals.rcUserId,
+					}),
+				),
+			}),
+		);
+	},
+);
 
 app.ws("/websocket", async function (ws, req) {
 	// TODO: Split up authentication mechanism instead of calling it with these
@@ -427,11 +456,14 @@ app.ws("/websocket", async function (ws, req) {
 		ws.close();
 		return;
 	}
+
+	await getRcUserMiddleware(req, { appendHeader: () => {} }, () => {});
+
 	// NOTE: Only use async listeners, so that each listener doesn't block.
-	const listener = async (participantName, action, roomName) => {
+	const roomListener = async (participantName, action, roomName) => {
 		ws.send(
 			Room(
-				transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
+				mungeRoom({
 					roomName,
 					roomHref: zoomRoomsByName[roomName].href,
 					roomNameToNote,
@@ -442,11 +474,26 @@ app.ws("/websocket", async function (ws, req) {
 		);
 	};
 
-	emitter.on("room-change", listener);
+	const customizationListener = async (rcUserId, action, isNew) => {
+		ws.send(
+			Customization(
+				mungeCustomization({
+					rcUserIdToCustomization,
+					rcUserId,
+					myRcUserId: req.locals.rcUserId,
+					isNew,
+				}),
+			),
+		);
+	};
+
+	emitter.on("room-change", roomListener);
+	emitter.on("customization-change", customizationListener);
 
 	// If client closes connection, stop sending events
 	ws.on("close", () => {
-		emitter.off("room-change", listener);
+		emitter.off("room-change", roomListener);
+		emitter.off("customization-change", customizationListener);
 	});
 });
 
@@ -469,31 +516,105 @@ app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
 	res.send(EditNoteForm({ roomName, note: note }));
 });
 
-const transformInternalsToWhatTheRootBodyHtmlRendererNeeds = ({
+const rcUserIdToCustomization = {};
+app.post(
+	"/customization",
+	isSessionAuthenticatedMiddleware,
+	getRcUserMiddleware,
+	function (req, res) {
+		const { code } = req.body;
+		const isNew = !rcUserIdToCustomization[req.locals.rcUserId];
+		rcUserIdToCustomization[req.locals.rcUserId] = {
+			code: code ?? "",
+			rcPersonName: req.locals.rcPersonName,
+		};
+
+		console.log(
+			`User ${req.locals.rcUserId} (${req.locals.rcPersonName}) ${
+				isNew ? "added a new" : "updated their"
+			} customization: \`${code}\``,
+		);
+
+		emitter.emit(
+			"customization-change",
+			req.locals.rcUserId,
+			`${isNew ? "added a new" : "updated their"} customization`,
+			isNew,
+		);
+
+		res.status(200).end();
+	},
+);
+
+app.get(
+	"/editCustomization.html",
+	isSessionAuthenticatedMiddleware,
+	getRcUserMiddleware,
+	function (req, res) {
+		const { code } = rcUserIdToCustomization[req.locals.rcUserId] ?? {
+			code: "",
+		};
+
+		res.send(EditCustomizationCodeForm({ code }));
+	},
+);
+
+// Data mungers take the craziness of the internal data structures
+// and make them peaceful and clean for the HTML generator
+const mungeRootBody = ({
 	authenticated,
 	zoomRooms,
 	roomNameToParticipantNames,
 	participantNameToEntity,
 	roomNameToNote,
+	rcUserIdToCustomization,
+	myRcUserId,
 }) => {
-	const rooms = [];
+	const rooms = zoomRooms.map(({ roomName }) =>
+		mungeRoom({
+			roomName,
+			roomHref: zoomRoomsByName[roomName].href,
+			roomNameToNote,
+			roomNameToParticipantNames,
+			participantNameToEntity,
+		}),
+	);
 
-	zoomRooms.forEach(({ roomName }) => {
-		rooms.push(
-			transformInternalsToWhatTheSingleRoomHtmlRendererNeeds({
-				roomName,
-				roomHref: zoomRoomsByName[roomName].href,
-				roomNameToNote,
-				roomNameToParticipantNames,
-				participantNameToEntity,
+	const myCustomization =
+		rcUserIdToCustomization[myRcUserId] &&
+		mungeCustomization({
+			rcUserId: myRcUserId,
+			rcUserIdToCustomization,
+			myRcUserId,
+		});
+	const otherCustomizations = Object.keys(rcUserIdToCustomization)
+		.filter((id) => id !== myRcUserId)
+		.map((rcUserId) =>
+			mungeCustomization({
+				rcUserId,
+				rcUserIdToCustomization,
+				myRcUserId,
 			}),
 		);
-	});
 
-	return { authenticated, rooms };
+	return { authenticated, rooms, otherCustomizations, myCustomization };
 };
 
-const transformInternalsToWhatTheSingleRoomHtmlRendererNeeds = ({
+const mungeCustomization = ({
+	rcUserId,
+	rcUserIdToCustomization,
+	myRcUserId,
+	isNew,
+}) => ({
+	rcUserId,
+	code: rcUserIdToCustomization[rcUserId].code ?? "",
+	isEmpty: rcUserIdToCustomization[rcUserId].code,
+	rcPersonName: rcUserIdToCustomization[rcUserId].rcPersonName,
+	isMine: myRcUserId === rcUserId,
+	isNew,
+});
+
+const mungeRoom = ({
 	roomName,
 	roomHref,
 	roomNameToNote,

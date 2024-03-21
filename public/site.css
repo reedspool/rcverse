@@ -101,6 +101,29 @@ summary {
     width: 100%;
 }
 
+.customization__code-preformatted {
+    white-space: pre-wrap;
+}
+.customization__code-preformatted script {
+    display: block;
+}
+.customization__code-preformatted script::before {
+    content: "<script>";
+}
+.customization__code-preformatted script::after {
+    content: "</script>";
+}
+
+.customization__code-preformatted style {
+    display: block;
+}
+.customization__code-preformatted style::before {
+    content: "<style>";
+}
+.customization__code-preformatted style::after {
+    content: "</style>";
+}
+
 /* Utilities */
 
 /* Remove from the box model, useful for HTMX utilities */
