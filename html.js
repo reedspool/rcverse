@@ -135,9 +135,7 @@ export const Room = ({
       </div>
     `;
 
-export const Note = ({ roomName, note }) => NoteDisplay({ roomName, note });
-
-export const NoteDisplay = ({ roomName, note }) =>
+export const Note = ({ roomName, note }) =>
   `
 <div class="display-contents">
   <div class="room__note">${note}</div>
