@@ -20,6 +20,7 @@ import {
 	EditNoteForm,
 	EditCustomizationCodeForm,
 	Customization,
+	escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
 
@@ -546,6 +547,37 @@ app.post(
 	},
 );
 
+app.post(
+	"/pauseCustomization",
+	isSessionAuthenticatedMiddleware,
+	getRcUserMiddleware,
+	function (req, res) {
+		const { rcUserId: pauseCustomizationRcUserId } = req.query;
+
+		if (!rcUserIdToCustomization[pauseCustomizationRcUserId]) {
+			res.status(200).end();
+			return;
+		}
+
+		rcUserIdToCustomization[pauseCustomizationRcUserId].paused = true;
+
+		const { rcPersonName } =
+			rcUserIdToCustomization[pauseCustomizationRcUserId];
+
+		console.log(
+			`User ${req.locals.rcUserId} (${req.locals.rcPersonName}) paused user ${rcPersonName}'s (${pauseCustomizationRcUserId}) customization`,
+		);
+
+		emitter.emit(
+			"customization-change",
+			pauseCustomizationRcUserId,
+			`customization was paused`,
+		);
+
+		res.status(200).end();
+	},
+);
+
 app.get(
 	"/editCustomization.html",
 	isSessionAuthenticatedMiddleware,
@@ -605,14 +637,21 @@ const mungeCustomization = ({
 	rcUserIdToCustomization,
 	myRcUserId,
 	isNew,
-}) => ({
-	rcUserId,
-	code: rcUserIdToCustomization[rcUserId].code ?? "",
-	isEmpty: rcUserIdToCustomization[rcUserId].code,
-	rcPersonName: rcUserIdToCustomization[rcUserId].rcPersonName,
-	isMine: myRcUserId === rcUserId,
-	isNew,
-});
+}) => {
+	let code = rcUserIdToCustomization[rcUserId].code ?? "";
+	const isPaused = rcUserIdToCustomization[rcUserId].paused;
+
+	if (isPaused) code = escapeHtml(code);
+	return {
+		rcUserId,
+		isPaused,
+		code,
+		isEmpty: rcUserIdToCustomization[rcUserId].code,
+		rcPersonName: rcUserIdToCustomization[rcUserId].rcPersonName,
+		isMine: myRcUserId === rcUserId,
+		isNew,
+	};
+};
 
 const mungeRoom = ({
 	roomName,
@@ -758,17 +797,3 @@ process.on("SIGINT", () => {
 // 		Lucia: typeof lucia;
 // 	}
 // }
-
-// Stolen from NakedJSX https://github.com/NakedJSX/core
-// Appears to be adapted from this SO answer https://stackoverflow.com/a/77873486
-export const escapeHtml = (text) => {
-	const htmlEscapeMap = {
-		"&": "&amp;",
-		"<": "&lt;",
-		">": "&gt;",
-		'"': "&quot;",
-		"'": "&#039;",
-	};
-
-	return text.replace(/[&<>"']/g, (m) => htmlEscapeMap[m] ?? "");
-};

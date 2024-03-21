@@ -14,10 +14,10 @@ export const Page = ({ body, title }) => `
     <link rel="stylesheet" type="text/css" href="site.css" />
   </head>
   <body>
-    ${body}
-
     <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
+
+    ${body}
   </body>
 </html>
 `;
@@ -106,7 +106,11 @@ ${rooms.map(Room).join("\n")}
 
 <hl>
 
-<h2>Custom code</h2>
+<h2>Custom HTML</h2>
+
+<p>Only you can edit your customization. Your code will immediately run for everyone, so <strong>be nice</strong>.</p>
+
+<p>Anyone can <strong>Pause</strong> anyone's customization. Customizations will be unpaused when they're updated.</p>
 
 <dl class="customization-list">
 ${
@@ -218,11 +222,19 @@ export const Customization = ({
   isMine,
   isEmpty,
   isNew,
+  isPaused,
 }) => `
       <div id="customization-update-${String(rcUserId).replaceAll(
         " ",
         "-",
       )}" class="display-contents">
+        <div>
+          ${
+            isPaused
+              ? `<strong>Paused</strong>`
+              : `<button hx-post="/pauseCustomization?rcUserId=${rcUserId}" hx-swap="none">Pause customization</button>`
+          }
+        </div>
         <div class="customization ${isEmpty ? "customization--non-empty" : ""}">
           <dt class="customization__header">
             <span class="customization__title">${
@@ -261,3 +273,17 @@ export const EditCustomizationCodeForm = ({ code }) =>
           <button type="submit">Update</button>
        </form>
 `;
+
+// Stolen from NakedJSX https://github.com/NakedJSX/core
+// Appears to be adapted from this SO answer https://stackoverflow.com/a/77873486
+export const escapeHtml = (text) => {
+  const htmlEscapeMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+
+  return text.replace(/[&<>"']/g, (m) => htmlEscapeMap[m] ?? "");
+};
