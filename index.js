@@ -38,6 +38,10 @@ process.on("unhandledRejection", function (err, promise) {
 // Create an event emitter to handle cross-cutting communications
 const emitter = new EventEmitter();
 
+// Only be warned if the number of listeners for a specific event goes above
+// this number. The warning will come in logs (MaxListenersExceededWarning)
+emitter.setMaxListeners(100);
+
 const app = express();
 const port = process.env.PORT || 3001;
 
