@@ -453,9 +453,9 @@ app.ws("/websocket", async function (ws, req) {
 const roomNameToNote = {};
 app.post("/note", isSessionAuthenticatedMiddleware, function (req, res) {
 	const { room, note } = req.body;
-	roomNameToNote[room] = note ?? "";
+	roomNameToNote[room] = escapeHtml(note) ?? "";
 
-	console.log(`Room '${room}' note changed to ${note}`);
+	console.log(`Room '${room}' note changed to ${note} (pre-escape)`);
 
 	emitter.emit("room-change", "someone", "updated the note for", room);
 
@@ -637,3 +637,17 @@ process.on("SIGINT", () => {
 // 		Lucia: typeof lucia;
 // 	}
 // }
+
+// Stolen from NakedJSX https://github.com/NakedJSX/core
+// Appears to be adapted from this SO answer https://stackoverflow.com/a/77873486
+export const escapeHtml = (text) => {
+	const htmlEscapeMap = {
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': "&quot;",
+		"'": "&#039;",
+	};
+
+	return text.replace(/[&<>"']/g, (m) => htmlEscapeMap[m] ?? "");
+};
