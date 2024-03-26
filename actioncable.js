@@ -4,7 +4,7 @@ import ActionCable from "actioncable-nodejs/src/actioncable.js";
 //       at this early stage of development because I really want tok now if that
 //       ever happens. This can be a console log later
 let hasSeenWorldDataWithoutReconnect = false;
-export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
+export function connect(APP_ID, APP_SECRET, emitter) {
   const uri = `wss://recurse.rctogether.com/cable?app_id=${APP_ID}&app_secret=${APP_SECRET}`;
 
   let cable = new ActionCable(uri, {
@@ -13,7 +13,7 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
 
   function reconnect() {
     hasSeenWorldDataWithoutReconnect = false;
-    connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback);
+    connect(APP_ID, APP_SECRET, emitter);
   }
 
   return cable.subscribe("ApiChannel", {
@@ -36,6 +36,7 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
 
     received({ type, payload }) {
       if (type === "world") {
+        emitter.emit("participant-room-data-reset");
         // Parse the initial dump of world data
         if (hasSeenWorldDataWithoutReconnect)
           // This is just a bit confusing but not that problematic
@@ -62,7 +63,7 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
             //       Tricky tricky.
             if (millisSinceLastSeen > 5 * hourInMillis) return;
 
-            zoomRoomUpdateCallback({
+            emitter.emit("participant-room-data", {
               participantName: person_name,
               roomName: zoom_user_display_name,
               faceMarkerImagePath: image_path,
@@ -74,7 +75,7 @@ export function connect(APP_ID, APP_SECRET, zoomRoomUpdateCallback) {
           payload;
         if (type !== "Avatar") return;
 
-        zoomRoomUpdateCallback({
+        emitter.emit("participant-room-data", {
           participantName: person_name,
           roomName: zoom_user_display_name,
           faceMarkerImagePath: image_path,

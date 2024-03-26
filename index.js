@@ -183,8 +183,8 @@ const secretAuthToken = process.env.SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE;
 // Mixpanel
 const mixpanelToken = process.env.MIXPANEL_TOKEN;
 
-const roomNameToParticipantNames = {};
-const participantNameToEntity = {};
+let roomNameToParticipantNames = {};
+let participantNameToEntity = {};
 
 // TODO
 //  The action cable API sometimes updates with a zoom room participant count,
@@ -193,7 +193,12 @@ const participantNameToEntity = {};
 //  Question: Does that participant count also reflect that person NOT in the room?
 //     I'm guessing it will not show the person in the room, because we also observed
 //     the little bubble in Virutal RC didn't show that person as in the room
-connect(actionCableAppId, actionCableAppSecret, (entity) => {
+connect(actionCableAppId, actionCableAppSecret, emitter);
+emitter.on("participant-room-data-reset", async () => {
+	roomNameToParticipantNames = {};
+	participantNameToEntity = {};
+});
+emitter.on("participant-room-data", async (entity) => {
 	let { roomName, participantName, faceMarkerImagePath } = entity;
 
 	if (roomName !== null && !zoomRoomNames.includes(roomName)) {
