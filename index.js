@@ -180,6 +180,9 @@ const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 // Special auth token (primarily for RCTV)
 const secretAuthToken = process.env.SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE;
 
+// Mixpanel
+const mixpanelToken = process.env.MIXPANEL_TOKEN;
+
 const roomNameToParticipantNames = {};
 const participantNameToEntity = {};
 
@@ -439,6 +442,8 @@ app.get(
 						myRcUserId: req.locals.rcUserId,
 					}),
 				),
+				mixpanelToken,
+				myRcUserId: req.locals.rcUserId,
 			}),
 		);
 	},
