@@ -25,7 +25,9 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => `
       mixpanel.init('${mixpanelToken}', {debug: true, track_pageview: true, persistence: 'localStorage'});
       // Set this to a unique identifier for the user performing the event.
       const userId = '${myRcUserId || ""}';
-      if (userId) {
+      if (document.referrer.match("rctv.recurse.com")) {
+        mixpanel.identify("rctv");
+      } else if (userId) {
         mixpanel.identify(userId);
       } else {
         mixpanel.reset();
