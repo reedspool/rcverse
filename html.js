@@ -249,14 +249,9 @@ export const Customization = ({
       <div id="customization-update-${String(rcUserId).replaceAll(
         " ",
         "-",
-      )}" class="display-contents">
-        <div>
-          ${
-            isPaused
-              ? `<strong>Paused</strong>`
-              : `<button hx-post="/pauseCustomization?rcUserId=${rcUserId}" hx-swap="none">Pause customization</button>`
-          }
-        </div>
+      )}" class="display-contents" hx-swap-oob="${
+        isNew ? "afterbegin" : "true"
+      }">
         <div class="customization ${isEmpty ? "customization--non-empty" : ""}">
           <dt class="customization__header">
             <span class="customization__title">${
@@ -266,10 +261,15 @@ export const Customization = ({
             }</span>
           </dt>
           <dd class="customization__code">
+            <div>
+              ${
+                isPaused
+                  ? `<strong>Paused</strong>`
+                  : `<button class="customization__pause-button" hx-post="/pauseCustomizationConfirmation.html?rcUserId=${rcUserId}" hx-swap="outerHTML">Pause ${rcPersonName}'s customization</button>`
+              }
+            </div>
             <div class="display-contents">
-              <pre class="customization__code-preformatted">
-                <code>${code}</code>
-              </pre>
+              <pre class="customization__code-preformatted"><code>${code}</code></pre>
               ${
                 isMine
                   ? `<button
@@ -284,6 +284,11 @@ export const Customization = ({
         </div>
       </div>
     `;
+
+export const PauseCustomizationConfirmationButton = ({ rcUserId }) =>
+  `
+    <button class="customization__pause-button customization__pause-button--confirmation" hx-post="/pauseCustomization?rcUserId=${rcUserId}" hx-swap="none"><em>Really</em> pause it for <strong>everyone</strong>!?</button>
+  `;
 
 export const EditCustomizationCodeForm = ({ code }) =>
   `

@@ -20,6 +20,7 @@ import {
 	EditNoteForm,
 	EditCustomizationCodeForm,
 	Customization,
+	PauseCustomizationConfirmationButton,
 	escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
@@ -554,6 +555,16 @@ app.post(
 		);
 
 		res.status(200).end();
+	},
+);
+
+app.post(
+	"/pauseCustomizationConfirmation.html",
+	isSessionAuthenticatedMiddleware,
+	function (req, res) {
+		const { rcUserId } = req.query;
+
+		res.send(PauseCustomizationConfirmationButton({ rcUserId }));
 	},
 );
 

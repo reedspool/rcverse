@@ -101,6 +101,10 @@ summary {
     width: 100%;
 }
 
+.customization__header {
+    margin-bottom: 0.4em;
+}
+
 .customization__code-preformatted {
     white-space: pre-wrap;
 }
@@ -122,6 +126,14 @@ summary {
 }
 .customization__code-preformatted style::after {
     content: "</style>";
+}
+
+.customization__pause-button {
+    font-size: 0.8em;
+}
+
+.customization__pause-button.customization__pause-button--confirmation {
+    font-size: 1.2em;
 }
 
 /* Utilities */
