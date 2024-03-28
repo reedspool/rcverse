@@ -48,10 +48,30 @@ summary {
 }
 
 .room-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(65ch, 1fr));
+    /* "An Auto-Filling CSS Grid With Max Columns of a Minimum Size" */
+    /* From https://css-tricks.com/an-auto-filling-css-grid-with-max-columns/ */
+    --grid-layout-gap: 0.4em;
+    --grid-column-count: 3;
+    --grid-item--min-width: 350px;
 
-    gap: 1.6em;
+    /**
+     * Calculated values.
+     */
+    --gap-count: calc(var(--grid-column-count) - 1);
+    --total-gap-width: calc(var(--gap-count) * var(--grid-layout-gap));
+    --grid-item--max-width: calc(
+        (100% - var(--total-gap-width)) / var(--grid-column-count)
+    );
+
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(
+            max(var(--grid-item--min-width), var(--grid-item--max-width)),
+            1fr
+        )
+    );
+    grid-gap: var(--grid-layout-gap);
 }
 
 .room {
