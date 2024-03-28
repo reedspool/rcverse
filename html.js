@@ -311,16 +311,37 @@ export const EditCustomizationCodeForm = ({ code }) =>
        </form>
 `;
 
-export const WhoIsInTheHub = ({ isEmpty, participants }) =>
+export const WhoIsInTheHub = ({ isEmpty, participants, iAmCheckedIn }) =>
   `
     <div id="in-the-hub-update" class="display-contents">
       <div class="room ${isEmpty ? "room--non-empty" : ""}">
-        <dt class="room__header"><span class="room__title">Who is in the hub?</span></dt>
+        <dt class="room__header">
+          <span class="room__title">Who is in the hub?</span>
+
+          ${
+            iAmCheckedIn
+              ? "(you are!)"
+              : `<button hx-post="/checkIntoHub" hx-swap="none">
+                   Check in
+                 </button>`
+          }
+        </dt>
         <dd class="room__details">
           ${Participants({ participants })}
         </dd>
       </div>
     </div>
+  `;
+
+export const CheckIntoHubForm = () =>
+  `
+    <form method="POST" action="/checkIntoHub" hx-post="/checkIntoHub" hx-swap="none" class="customization-editor">
+        <label class="customization-editor__form-item">
+            Note
+            <textarea name="code" class="customization-editor__text-input" cols="60" rows="20"></textarea>
+        </label>
+        <button type="submit">Check in</button>
+     </form>
   `;
 
 // Stolen from NakedJSX https://github.com/NakedJSX/core

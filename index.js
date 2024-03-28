@@ -22,6 +22,7 @@ import {
 	Customization,
 	PauseCustomizationConfirmationButton,
 	WhoIsInTheHub,
+	CheckIntoHubForm,
 	escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
@@ -484,10 +485,7 @@ app.get(
 		const noCustomizations = typeof basic !== "undefined";
 
 		if (needToUpdateWhosAtTheHub) {
-			let date = new Date();
-			date = date.toISOString();
-			// Format date as `yyyy-mm-dd`
-			date = date.slice(0, date.indexOf("T"));
+			const date = getTodayDateForHubVisitsAPI();
 			const fetchResponse = await fetch(
 				`https://www.recurse.com/api/v1/hub_visits?per_page=200&date=${date}`,
 				{
@@ -499,12 +497,22 @@ app.get(
 
 			const json = await fetchResponse.json();
 			inTheHubParticipantNames = [];
+			Object.keys(participantNameToEntity).forEach((participantName) => {
+				participantNameToEntity[participantName].inTheHub = false;
+			});
 			const peopleFacesToGet = [];
 			json.forEach(({ person }) => {
 				inTheHubParticipantNames.push(person.name);
 				if (!participantNameToEntity[person.name]?.faceMarkerImagePath) {
 					peopleFacesToGet.push(person);
 				}
+				if (!participantNameToEntity[person.name]) {
+					participantNameToEntity[person.name] = {};
+				}
+				participantNameToEntity[person.name] = {
+					...participantNameToEntity[person.name],
+					inTheHub: true,
+				};
 			});
 
 			await Promise.all(
@@ -550,6 +558,7 @@ app.get(
 						roomNameToNote,
 						rcUserIdToCustomization,
 						myRcUserId: req.locals.rcUserId,
+						myParticipantName: req.locals.rcPersonName,
 						noCustomizations,
 						inTheHubParticipantNames,
 					}),
@@ -611,6 +620,7 @@ app.ws("/websocket", async function (ws, req) {
 				mungeWhoIsInTheHub({
 					inTheHubParticipantNames,
 					participantNameToEntity,
+					myParticipantName: req.locals.rcPersonName,
 				}),
 			),
 		);
@@ -648,6 +658,29 @@ app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
 });
 
 const rcUserIdToCustomization = {};
+
+app.post(
+	`/checkIntoHub`,
+	isSessionAuthenticatedMiddleware,
+	getRcUserMiddleware,
+	async (req, res) => {
+		const { note } = req.body;
+		const date = getTodayDateForHubVisitsAPI();
+		await fetch(
+			`https://www.recurse.com/api/v1/hub_visits/${req.locals.rcUserId}/${date}`,
+			{
+				method: "PATCH",
+				headers: {
+					Authorization: `Bearer ${req.locals.access_token}`,
+				},
+				body: {
+					notes: note,
+				},
+			},
+		);
+		res.sendStatus(200);
+	},
+);
 app.post(
 	"/customization",
 	isSessionAuthenticatedMiddleware,
@@ -741,12 +774,14 @@ const mungeRootBody = ({
 	roomNameToNote,
 	rcUserIdToCustomization,
 	myRcUserId,
+	myParticipantName,
 	noCustomizations,
 	inTheHubParticipantNames,
 }) => {
 	const whoIsInTheHub = mungeWhoIsInTheHub({
 		inTheHubParticipantNames,
 		participantNameToEntity,
+		myParticipantName,
 	});
 	const rooms = zoomRooms.map(({ roomName }) =>
 		mungeRoom({
@@ -834,6 +869,7 @@ const mungeRoom = ({
 const mungeWhoIsInTheHub = ({
 	inTheHubParticipantNames,
 	participantNameToEntity,
+	myParticipantName,
 }) => {
 	return {
 		isEmpty: inTheHubParticipantNames.length > 0,
@@ -843,6 +879,7 @@ const mungeWhoIsInTheHub = ({
 				participantNameToEntity[participantName]?.faceMarkerImagePath ??
 				"recurse-community-bot.png",
 		})),
+		iAmCheckedIn: participantNameToEntity[myParticipantName]?.inTheHub,
 	};
 };
 
@@ -968,3 +1005,10 @@ process.on("SIGINT", () => {
 // 		Lucia: typeof lucia;
 // 	}
 // }
+
+const getTodayDateForHubVisitsAPI = () => {
+	let date = new Date();
+	date = date.toISOString();
+	// Format date as `yyyy-mm-dd`
+	return date.slice(0, date.indexOf("T"));
+};
