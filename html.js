@@ -49,6 +49,7 @@ export const RootBody = ({
   rooms,
   myCustomization,
   otherCustomizations,
+  noCustomizations,
 }) => {
   let body = `<main  hx-ext="ws" ws-connect="/websocket">`;
   body += `<h1>RCVerse</h1>`;
@@ -130,9 +131,15 @@ ${rooms.map(Room).join("\n")}
 
 <h2>Custom HTML</h2>
 
-<p>Only you can edit your customization. Your code will immediately run for everyone, so <strong>be nice</strong>.</p>
+${
+  noCustomizations
+    ? `<p>Customizations disabled because of <code>?basic</code> query parameter</p>`
+    : `
+  <p>Only you can edit your customization. Your code will immediately run for everyone, so <strong>be nice</strong>.</p>
 
 <p>Anyone can <strong>Pause</strong> anyone's customization. Customizations will be unpaused when they're updated.</p>
+
+<p>To view this page without any customizations active, add the query parameter <code>?basic</code> or <a href="/?basic">click here</a>.</p>
 
 <dl class="customization-list">
 ${
@@ -158,7 +165,8 @@ ${
     : otherCustomizations.map(Customization).join("\n")
 }
 </dl>
-
+  `
+}
 <hl>
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>

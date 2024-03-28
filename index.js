@@ -431,6 +431,12 @@ app.get(
 	isSessionAuthenticatedMiddleware,
 	getRcUserMiddleware,
 	async (req, res) => {
+		let { basic } = req.query;
+
+		// `?basic` means the value of this would be empty string,
+		// but that should trigger the effect
+		const noCustomizations = typeof basic !== "undefined";
+
 		res.send(
 			// TODO: Cache an authenticated version and an unauthenticated version
 			//       and only invalidate that cache when a zoom room update occurs
@@ -446,6 +452,7 @@ app.get(
 						roomNameToNote,
 						rcUserIdToCustomization,
 						myRcUserId: req.locals.rcUserId,
+						noCustomizations,
 					}),
 				),
 				mixpanelToken,
@@ -622,6 +629,7 @@ const mungeRootBody = ({
 	roomNameToNote,
 	rcUserIdToCustomization,
 	myRcUserId,
+	noCustomizations,
 }) => {
 	const rooms = zoomRooms.map(({ roomName }) =>
 		mungeRoom({
@@ -634,23 +642,32 @@ const mungeRootBody = ({
 	);
 
 	const myCustomization =
+		!noCustomizations &&
 		rcUserIdToCustomization[myRcUserId] &&
 		mungeCustomization({
 			rcUserId: myRcUserId,
 			rcUserIdToCustomization,
 			myRcUserId,
 		});
-	const otherCustomizations = Object.keys(rcUserIdToCustomization)
-		.filter((id) => id !== myRcUserId)
-		.map((rcUserId) =>
-			mungeCustomization({
-				rcUserId,
-				rcUserIdToCustomization,
-				myRcUserId,
-			}),
-		);
+	const otherCustomizations =
+		!noCustomizations &&
+		Object.keys(rcUserIdToCustomization)
+			.filter((id) => id !== myRcUserId)
+			.map((rcUserId) =>
+				mungeCustomization({
+					rcUserId,
+					rcUserIdToCustomization,
+					myRcUserId,
+				}),
+			);
 
-	return { authenticated, rooms, otherCustomizations, myCustomization };
+	return {
+		authenticated,
+		rooms,
+		otherCustomizations,
+		myCustomization,
+		noCustomizations,
+	};
 };
 
 const mungeCustomization = ({
