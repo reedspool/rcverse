@@ -50,6 +50,7 @@ export const RootBody = ({
   myCustomization,
   otherCustomizations,
   noCustomizations,
+  whoIsInTheHub,
 }) => {
   let body = `<main  hx-ext="ws" ws-connect="/websocket">`;
   body += `<h1>RCVerse</h1>`;
@@ -124,6 +125,7 @@ href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
 </details>
 
 <dl class="room-list">
+${WhoIsInTheHub(whoIsInTheHub)}
 ${rooms.map(Room).join("\n")}
 </dl>
 
@@ -308,6 +310,18 @@ export const EditCustomizationCodeForm = ({ code }) =>
           <button type="submit">Update</button>
        </form>
 `;
+
+export const WhoIsInTheHub = ({ isEmpty, participants }) =>
+  `
+    <div id="in-the-hub-update" class="display-contents">
+      <div class="room ${isEmpty ? "room--non-empty" : ""}">
+        <dt class="room__header"><span class="room__title">Who is in the hub?</span></dt>
+        <dd class="room__details">
+          ${Participants({ participants })}
+        </dd>
+      </div>
+    </div>
+  `;
 
 // Stolen from NakedJSX https://github.com/NakedJSX/core
 // Appears to be adapted from this SO answer https://stackoverflow.com/a/77873486

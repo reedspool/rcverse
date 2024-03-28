@@ -21,6 +21,7 @@ import {
 	EditCustomizationCodeForm,
 	Customization,
 	PauseCustomizationConfirmationButton,
+	WhoIsInTheHub,
 	escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
@@ -184,6 +185,7 @@ const secretAuthToken = process.env.SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE;
 // Mixpanel
 const mixpanelToken = process.env.MIXPANEL_TOKEN;
 
+let inTheHubParticipantNames = [];
 let roomNameToParticipantNames = {};
 let participantNameToEntity = {};
 
@@ -196,16 +198,41 @@ let participantNameToEntity = {};
 //     the little bubble in Virutal RC didn't show that person as in the room
 connect(actionCableAppId, actionCableAppSecret, emitter);
 emitter.on("participant-room-data-reset", async () => {
+	inTheHubParticipantNames = [];
 	roomNameToParticipantNames = {};
 	participantNameToEntity = {};
 });
 emitter.on("participant-room-data", async (entity) => {
-	let { roomName, participantName, faceMarkerImagePath } = entity;
+	let { roomName, participantName, faceMarkerImagePath, inTheHub } = entity;
 
 	if (roomName !== null && !zoomRoomNames.includes(roomName)) {
 		// TODO don't kill the server but be loud about this confusion in the future
 		console.error(`Surprising zoom room name '${roomName}'`);
 		return;
+	}
+
+	if (!participantNameToEntity[participantName]) {
+		participantNameToEntity[participantName] = { faceMarkerImagePath };
+	}
+
+	let hubStatusVerb = "";
+	if (inTheHub && !participantNameToEntity[participantName]?.inTheHub) {
+		hubStatusVerb = "enterred";
+		inTheHubParticipantNames.push(participantName);
+	} else if (!inTheHub && participantNameToEntity[participantName]?.inTheHub) {
+		hubStatusVerb = "left";
+		inTheHubParticipantNames = inTheHubParticipantNames.filter(
+			(name) => name !== participantName,
+		);
+	}
+
+	if (hubStatusVerb) {
+		console.log(`${participantName} ${hubStatusVerb} the hub`);
+		participantNameToEntity[participantName] = {
+			...participantNameToEntity[participantName],
+			inTheHub,
+		};
+		emitter.emit("in-the-hub-change");
 	}
 
 	// zoom_room is a string means we're adding a person to that room
@@ -223,6 +250,7 @@ emitter.on("participant-room-data", async (entity) => {
 		roomNameToParticipantNames[roomName].push(participantName);
 
 		participantNameToEntity[participantName] = {
+			...participantNameToEntity[participantName],
 			roomName,
 			faceMarkerImagePath,
 		};
@@ -242,6 +270,7 @@ emitter.on("participant-room-data", async (entity) => {
 		}
 
 		participantNameToEntity[participantName] = {
+			...participantNameToEntity[participantName],
 			roomName,
 			faceMarkerImagePath,
 		};
@@ -419,13 +448,30 @@ const getRcUserMiddleware = async (req, res, next) => {
 	return next();
 };
 
+// We track who is at the hub in two different ways. We get immediate updates
+// through the action cable stream, but that doesn't help us understand who
+// came into the hub before the server started. So we sometimes also get the
+// info directly from the API which is conclusive
+let needToUpdateWhosAtTheHub = true;
+let timeoutScheduleNeedToUpdateWhosAtTheHub;
+const scheduleNeedToUpdateWhosAtTheHub = async () => {
+	clearTimeout(timeoutScheduleNeedToUpdateWhosAtTheHub);
+	await new Promise(
+		(resolve) =>
+			(timeoutScheduleNeedToUpdateWhosAtTheHub = setTimeout(
+				resolve,
+				1000 * 60 * 30, // 30 min
+			)),
+	);
+	needToUpdateWhosAtTheHub = true;
+};
+
 // TODO I don't know where to write this
 // Client could lose Websocket connection for a long time, like if they close their laptop
 // HTMX is going to try to reconnect immediately, but it doesn't do anything
 // to refresh the whole page to get a real understanding of the current world,
 //  instead it will just start updating from the next stream evenst, and it could
 // be completley wrong about where everyone is currenlty
-
 app.get(
 	"/",
 	isSessionAuthenticatedMiddleware,
@@ -436,6 +482,58 @@ app.get(
 		// `?basic` means the value of this would be empty string,
 		// but that should trigger the effect
 		const noCustomizations = typeof basic !== "undefined";
+
+		if (needToUpdateWhosAtTheHub) {
+			let date = new Date();
+			date = date.toISOString();
+			// Format date as `yyyy-mm-dd`
+			date = date.slice(0, date.indexOf("T"));
+			const fetchResponse = await fetch(
+				`https://www.recurse.com/api/v1/hub_visits?per_page=200&date=${date}`,
+				{
+					headers: {
+						Authorization: `Bearer ${req.locals.access_token}`,
+					},
+				},
+			);
+
+			const json = await fetchResponse.json();
+			inTheHubParticipantNames = [];
+			const peopleFacesToGet = [];
+			json.forEach(({ person }) => {
+				inTheHubParticipantNames.push(person.name);
+				if (!participantNameToEntity[person.name]?.faceMarkerImagePath) {
+					peopleFacesToGet.push(person);
+				}
+			});
+
+			await Promise.all(
+				peopleFacesToGet.map(async ({ id, name }) => {
+					const fetchResponse = await fetch(
+						`https://www.recurse.com/api/v1/profiles/${id}`,
+						{
+							headers: {
+								Authorization: `Bearer ${req.locals.access_token}`,
+							},
+						},
+					);
+
+					const { image_path } = await fetchResponse.json();
+					if (!participantNameToEntity[name]) {
+						participantNameToEntity[name] = {};
+					}
+
+					participantNameToEntity[name] = {
+						...participantNameToEntity[name],
+						faceMarkerImagePath: image_path,
+					};
+				}),
+			);
+
+			emitter.emit("in-the-hub-change");
+			needToUpdateWhosAtTheHub = false;
+			scheduleNeedToUpdateWhosAtTheHub();
+		}
 
 		res.send(
 			// TODO: Cache an authenticated version and an unauthenticated version
@@ -453,6 +551,7 @@ app.get(
 						rcUserIdToCustomization,
 						myRcUserId: req.locals.rcUserId,
 						noCustomizations,
+						inTheHubParticipantNames,
 					}),
 				),
 				mixpanelToken,
@@ -506,12 +605,25 @@ app.ws("/websocket", async function (ws, req) {
 		);
 	};
 
+	const inTheHubListener = async () => {
+		ws.send(
+			WhoIsInTheHub(
+				mungeWhoIsInTheHub({
+					inTheHubParticipantNames,
+					participantNameToEntity,
+				}),
+			),
+		);
+	};
+
 	emitter.on("room-change", roomListener);
+	emitter.on("in-the-hub-change", inTheHubListener);
 	emitter.on("customization-change", customizationListener);
 
 	// If client closes connection, stop sending events
 	ws.on("close", () => {
 		emitter.off("room-change", roomListener);
+		emitter.off("in-the-hub-change", inTheHubListener);
 		emitter.off("customization-change", customizationListener);
 	});
 });
@@ -630,7 +742,12 @@ const mungeRootBody = ({
 	rcUserIdToCustomization,
 	myRcUserId,
 	noCustomizations,
+	inTheHubParticipantNames,
 }) => {
+	const whoIsInTheHub = mungeWhoIsInTheHub({
+		inTheHubParticipantNames,
+		participantNameToEntity,
+	});
 	const rooms = zoomRooms.map(({ roomName }) =>
 		mungeRoom({
 			roomName,
@@ -663,6 +780,7 @@ const mungeRootBody = ({
 
 	return {
 		authenticated,
+		whoIsInTheHub,
 		rooms,
 		otherCustomizations,
 		myCustomization,
@@ -710,6 +828,21 @@ const mungeRoom = ({
 					participantNameToEntity[participantName]?.faceMarkerImagePath ??
 					"recurse-community-bot.png",
 			})) ?? [],
+	};
+};
+
+const mungeWhoIsInTheHub = ({
+	inTheHubParticipantNames,
+	participantNameToEntity,
+}) => {
+	return {
+		isEmpty: inTheHubParticipantNames.length > 0,
+		participants: inTheHubParticipantNames.map((participantName) => ({
+			participantName,
+			faceMarkerImagePath:
+				participantNameToEntity[participantName]?.faceMarkerImagePath ??
+				"recurse-community-bot.png",
+		})),
 	};
 };
 
