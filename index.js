@@ -855,7 +855,8 @@ const mungeRoom = ({
 		roomName,
 		roomHref,
 		note: roomNameToNote[roomName] ?? "",
-		isEmpty: roomNameToParticipantNames[roomName]?.length > 0,
+		isEmpty: (roomNameToParticipantNames[roomName]?.length ?? 0) == 0,
+		count: roomNameToParticipantNames[roomName]?.length || 0,
 		participants:
 			roomNameToParticipantNames[roomName]?.map((participantName) => ({
 				participantName,

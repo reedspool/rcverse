@@ -126,7 +126,10 @@ href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
 
 <dl class="room-list">
 ${WhoIsInTheHub(whoIsInTheHub)}
-${rooms.map(Room).join("\n")}
+${rooms
+  .sort(({ count: a }, { count: b }) => b - a)
+  .map(Room)
+  .join("\n")}
 </dl>
 
 <hl>
@@ -190,6 +193,7 @@ export const Room = ({
   isEmpty,
   participants,
   note = "",
+  count,
 }) => `
       <div id="room-update-${roomName.replaceAll(
         " ",
@@ -197,12 +201,15 @@ export const Room = ({
       )}" class="display-contents">
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt class="room__header">
-            <span class="room__title">${roomName}</span> <a
-                  href="${roomHref}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >Join</a
-                >
+            <span class="room__title">${roomName}</span>
+            <a
+              href="${roomHref}"
+              target="_blank"
+              rel="noopener noreferrer"
+              >
+              Join
+            </a>
+            <span>(${isEmpty ? "empty" : `${count}`})</span>
           </dt>
           <dd class="room__details">
             ${Participants({ participants })}
