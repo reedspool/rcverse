@@ -478,13 +478,15 @@ app.get(
 	isSessionAuthenticatedMiddleware,
 	getRcUserMiddleware,
 	async (req, res) => {
-		let { basic } = req.query;
+		let { basic, sort } = req.query;
 
 		// `?basic` means the value of this would be empty string,
 		// but that should trigger the effect
 		const noCustomizations = typeof basic !== "undefined";
 
 		if (needToUpdateWhosAtTheHub) {
+		// `?sort=none` uses the default ordering instead of sort by count
+		const sortRoomsByParticipantCount = sort !== "none";
 			const date = getTodayDateForHubVisitsAPI();
 			const fetchResponse = await fetch(
 				`https://www.recurse.com/api/v1/hub_visits?per_page=200&date=${date}`,
@@ -561,6 +563,7 @@ app.get(
 						myParticipantName: req.locals.rcPersonName,
 						noCustomizations,
 						inTheHubParticipantNames,
+						sortRoomsByParticipantCount,
 					}),
 				),
 				mixpanelToken,
@@ -777,6 +780,7 @@ const mungeRootBody = ({
 	myParticipantName,
 	noCustomizations,
 	inTheHubParticipantNames,
+	sortRoomsByParticipantCount,
 }) => {
 	const whoIsInTheHub = mungeWhoIsInTheHub({
 		inTheHubParticipantNames,
@@ -792,6 +796,10 @@ const mungeRootBody = ({
 			participantNameToEntity,
 		}),
 	);
+
+	if (sortRoomsByParticipantCount) {
+		rooms.sort(({ count: a }, { count: b }) => b - a);
+	}
 
 	const myCustomization =
 		!noCustomizations &&

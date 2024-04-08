@@ -97,6 +97,20 @@ The site is now open source! Check it out on <a href="https://github.com/reedspo
 
 </details>
 <details>
+<summary>Usage</summary>
+
+<p>To view this page without any customizations active, add the query parameter
+<code>?basic</code> or <a href="/?basic">click here</a>.</p>
+
+<p>Normally, the rooms on the page are sorted in order of most participants to least.
+To disable sorting and use a roughly alphebetical, stable room order, add the query parameter
+<code>?sort=none</code> or <a href="/?sort=none">click here</a>.</p>
+
+<p>To combine URL parameters, combine them in any order with a <code>&</code>
+(ampersand) between them, and only one <code>?</code> (question mark) at the start.
+E.g. <code>?basic&sort=none</code></p>
+</details>
+<details>
 <summary>⚠ XSS vulnerability <strong>moved south</strong> for greener pastures!</summary>
 
 <p>There's a new section in town, "Custom Code", at the bototm of the page.
@@ -126,10 +140,7 @@ href="https://github.com/reedspool/rc-verse">Make a PR!</a></p>
 
 <dl class="room-list">
 ${WhoIsInTheHub(whoIsInTheHub)}
-${rooms
-  .sort(({ count: a }, { count: b }) => b - a)
-  .map(Room)
-  .join("\n")}
+${rooms.map(Room).join("\n")}
 </dl>
 
 <hl>
