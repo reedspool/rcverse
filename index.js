@@ -467,6 +467,69 @@ const scheduleNeedToUpdateWhosAtTheHub = async () => {
 	needToUpdateWhosAtTheHub = true;
 };
 
+const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
+	if (!req.locals?.authenticated || !req.locals.access_token) return next();
+	if (!needToUpdateWhosAtTheHub) return next();
+
+	const date = getTodayDateForHubVisitsAPI();
+	const fetchResponse = await fetch(
+		`https://www.recurse.com/api/v1/hub_visits?per_page=200&date=${date}`,
+		{
+			headers: {
+				Authorization: `Bearer ${req.locals.access_token}`,
+			},
+		},
+	);
+
+	const json = await fetchResponse.json();
+	inTheHubParticipantNames = [];
+	Object.keys(participantNameToEntity).forEach((participantName) => {
+		participantNameToEntity[participantName].inTheHub = false;
+	});
+	const peopleFacesToGet = [];
+	json.forEach(({ person }) => {
+		inTheHubParticipantNames.push(person.name);
+		if (!participantNameToEntity[person.name]?.faceMarkerImagePath) {
+			peopleFacesToGet.push(person);
+		}
+		if (!participantNameToEntity[person.name]) {
+			participantNameToEntity[person.name] = {};
+		}
+		participantNameToEntity[person.name] = {
+			...participantNameToEntity[person.name],
+			inTheHub: true,
+		};
+	});
+
+	await Promise.all(
+		peopleFacesToGet.map(async ({ id, name }) => {
+			const fetchResponse = await fetch(
+				`https://www.recurse.com/api/v1/profiles/${id}`,
+				{
+					headers: {
+						Authorization: `Bearer ${req.locals.access_token}`,
+					},
+				},
+			);
+
+			const { image_path } = await fetchResponse.json();
+			if (!participantNameToEntity[name]) {
+				participantNameToEntity[name] = {};
+			}
+
+			participantNameToEntity[name] = {
+				...participantNameToEntity[name],
+				faceMarkerImagePath: image_path,
+			};
+		}),
+	);
+
+	emitter.emit("in-the-hub-change");
+	needToUpdateWhosAtTheHub = false;
+	scheduleNeedToUpdateWhosAtTheHub();
+	return next();
+};
+
 // TODO I don't know where to write this
 // Client could lose Websocket connection for a long time, like if they close their laptop
 // HTMX is going to try to reconnect immediately, but it doesn't do anything
@@ -477,6 +540,7 @@ app.get(
 	"/",
 	isSessionAuthenticatedMiddleware,
 	getRcUserMiddleware,
+	updateWhoIsAtTheHubMiddleware,
 	async (req, res) => {
 		let { basic, sort } = req.query;
 
@@ -484,66 +548,8 @@ app.get(
 		// but that should trigger the effect
 		const noCustomizations = typeof basic !== "undefined";
 
-		if (needToUpdateWhosAtTheHub) {
 		// `?sort=none` uses the default ordering instead of sort by count
 		const sortRoomsByParticipantCount = sort !== "none";
-			const date = getTodayDateForHubVisitsAPI();
-			const fetchResponse = await fetch(
-				`https://www.recurse.com/api/v1/hub_visits?per_page=200&date=${date}`,
-				{
-					headers: {
-						Authorization: `Bearer ${req.locals.access_token}`,
-					},
-				},
-			);
-
-			const json = await fetchResponse.json();
-			inTheHubParticipantNames = [];
-			Object.keys(participantNameToEntity).forEach((participantName) => {
-				participantNameToEntity[participantName].inTheHub = false;
-			});
-			const peopleFacesToGet = [];
-			json.forEach(({ person }) => {
-				inTheHubParticipantNames.push(person.name);
-				if (!participantNameToEntity[person.name]?.faceMarkerImagePath) {
-					peopleFacesToGet.push(person);
-				}
-				if (!participantNameToEntity[person.name]) {
-					participantNameToEntity[person.name] = {};
-				}
-				participantNameToEntity[person.name] = {
-					...participantNameToEntity[person.name],
-					inTheHub: true,
-				};
-			});
-
-			await Promise.all(
-				peopleFacesToGet.map(async ({ id, name }) => {
-					const fetchResponse = await fetch(
-						`https://www.recurse.com/api/v1/profiles/${id}`,
-						{
-							headers: {
-								Authorization: `Bearer ${req.locals.access_token}`,
-							},
-						},
-					);
-
-					const { image_path } = await fetchResponse.json();
-					if (!participantNameToEntity[name]) {
-						participantNameToEntity[name] = {};
-					}
-
-					participantNameToEntity[name] = {
-						...participantNameToEntity[name],
-						faceMarkerImagePath: image_path,
-					};
-				}),
-			);
-
-			emitter.emit("in-the-hub-change");
-			needToUpdateWhosAtTheHub = false;
-			scheduleNeedToUpdateWhosAtTheHub();
-		}
 
 		res.send(
 			// TODO: Cache an authenticated version and an unauthenticated version
