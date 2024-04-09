@@ -82,6 +82,11 @@ summary {
     justify-content: space-between;
 }
 
+/* TODO: Probably better to find a layout which works for everything */
+#in-the-hub-update .room {
+    justify-content: flex-start;
+}
+
 .room:hover {
     background-color: rgba(0, 0, 0, 0.05);
 }
@@ -93,12 +98,29 @@ summary {
     border-top-right-radius: 0.4em;
     display: flex;
     flex-direction: row;
-    align-items: baseline;
+    justify-content: space-between;
+    align-items: center;
     gap: 0.4em;
+}
+
+.room__header-title {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6em;
 }
 
 .room__title {
     font-size: 1.4em;
+}
+
+.room__title-button {
+    font-size: 0.8em;
+}
+
+.room__count {
+    font-size: 0.8em;
+    color: darkgray;
 }
 
 .room__details {
@@ -108,6 +130,24 @@ summary {
     justify-content: space-between;
     align-items: baseline;
     gap: 0.4em;
+}
+
+.room__note-updates {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.4em;
+}
+
+.room__note-update-time {
+    font-size: 0.6em;
+    font-style: italic;
+}
+
+.room__note-edit-button {
+    font-size: 0.8em;
 }
 
 .note-editor,

@@ -111,9 +111,9 @@ To disable sorting and use a roughly alphebetical, stable room order, add the qu
 E.g. <code>?basic&sort=none</code></p>
 </details>
 <details>
-<summary>⚠ XSS vulnerability <strong>moved south</strong> for greener pastures!</summary>
+<summary>⚠ XSS vulnerability</summary>
 
-<p>There's a new section in town, "Custom Code", at the bototm of the page.
+<p>There's a new section named "Custom Code" at the bottom of the page.
 All room notes are now properly HTML escaped.</p>
 
 <p>This site has a XSS vulnerability. That means you can inject code which will
@@ -203,8 +203,11 @@ export const Room = ({
   roomName,
   isEmpty,
   participants,
-  note = "",
-  count,
+  hasNote = false,
+  noteContent,
+  noteDateTime,
+  noteHowManyMinutesAgo,
+  countPhrase,
 }) => `
       <div id="room-update-${roomName.replaceAll(
         " ",
@@ -212,41 +215,71 @@ export const Room = ({
       )}" class="display-contents">
         <div class="room ${isEmpty ? "room--non-empty" : ""}">
           <dt class="room__header">
-            <span class="room__title">${roomName}</span>
-            <a
-              href="${roomHref}"
-              target="_blank"
-              rel="noopener noreferrer"
-              >
-              Join
-            </a>
-            <span>(${isEmpty ? "empty" : `${count}`})</span>
+            <span class="room__header-title">
+              <span class="room__title">${roomName}</span>
+              <a
+                class="room__join"
+                href="${roomHref}"
+                target="_blank"
+                rel="noopener noreferrer"
+                >
+                Join
+              </a>
+            </span>
+            <span class="room__count">${countPhrase}</span>
           </dt>
           <dd class="room__details">
             ${Participants({ participants })}
-            ${Note({ roomName, note })}
+            ${Note({
+              roomName,
+              hasNote,
+              noteContent,
+              noteDateTime,
+              noteHowManyMinutesAgo,
+            })}
           </dd>
         </div>
       </div>
     `;
 
-export const Note = ({ roomName, note }) =>
+export const Note = ({
+  roomName,
+  hasNote,
+  noteContent,
+  noteDateTime,
+  noteHowManyMinutesAgo,
+}) =>
   `
 <div class="display-contents">
-  <div class="room__note">${note}</div>
-  <button hx-get="/note.html?roomName=${roomName}" hx-swap="outerHTML" hx-target="closest div">${
-    note ? "Edit note" : "Add note"
-  }</button>
+  <div class="room__note">${noteContent}</div>
+  <span class="room__note-updates">
+    <button
+      class="room__note-edit-button"
+      hx-get="/note.html?roomName=${roomName}"
+      hx-swap="outerHTML"
+      hx-target="closest div"
+    >${hasNote ? "Edit note" : "Add note"}</button>
+    ${
+      hasNote
+        ? `<span class="room__note-update-time">
+             Updated
+             <time datetime="${noteDateTime}" title="${noteDateTime} UTC">
+               ${noteHowManyMinutesAgo}
+             </time>
+           </span>`
+        : ""
+    }
+  </span>
 </div>
 `;
 
-export const EditNoteForm = ({ roomName, note }) =>
+export const EditNoteForm = ({ roomName, noteContent }) =>
   `
       <form method="POST" action="/note" hx-post="/note" hx-swap="none" class="note-editor">
           <input type="hidden" name="room" value="${roomName}">
           <label class="note-editor__form-item">
               Note
-              <textarea name="note" class="note-editor__text-input" cols="33" rows="5">${note}</textarea>
+              <textarea name="content" class="note-editor__text-input" cols="33" rows="5">${noteContent}</textarea>
           </label>
           <button type="submit">Update note</button>
        </form>
@@ -339,7 +372,7 @@ export const WhoIsInTheHub = ({ isEmpty, participants, iAmCheckedIn }) =>
           ${
             iAmCheckedIn
               ? "(you are!)"
-              : `<button hx-post="/checkIntoHub" hx-swap="none">
+              : `<button class="room__title-button" hx-post="/checkIntoHub" hx-swap="none">
                    Check in
                  </button>`
           }

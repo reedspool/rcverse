@@ -663,24 +663,30 @@ app.ws("/websocket", async function (ws, req) {
 
 const roomNameToNote = {};
 app.post("/note", isSessionAuthenticatedMiddleware, function (req, res) {
-	const { room, note } = req.body;
-	roomNameToNote[room] = escapeHtml(note) ?? "";
+	const { room, content } = req.body;
+	roomNameToNote[room] = {
+		content: escapeHtml(content) ?? "",
+		date: new Date(),
+	};
 
-	console.log(`Room '${room}' note changed to ${note} (pre-escape)`);
+	console.log(`Room '${room}' note changed to ${content} (pre-escape)`);
 
 	emitter.emit("room-change", "someone", "updated the note for", room);
 
 	res.status(200).end();
 });
 
-app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
-	const { roomName } = req.query;
-	const note = roomNameToNote[roomName] ?? "";
-
-	res.send(EditNoteForm({ roomName, note: note }));
+const mungeEditNoteForm = ({ roomName, roomNameToNote }) => ({
+	roomName,
+	noteContent: roomNameToNote[roomName]?.content ?? "",
 });
 
-const rcUserIdToCustomization = {};
+app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
+	const { roomName } = req.query;
+
+	res.send(EditNoteForm(mungeEditNoteForm({ roomName, roomNameToNote })));
+});
+
 // Currently unused, adds a text field to submit a note when you check in
 app.get(
 	"/checkIntoHub.html",
@@ -712,6 +718,8 @@ app.post(
 		res.sendStatus(200);
 	},
 );
+
+const rcUserIdToCustomization = {};
 app.post(
 	"/customization",
 	isSessionAuthenticatedMiddleware,
@@ -890,9 +898,13 @@ const mungeRoom = ({
 	return {
 		roomName,
 		roomHref,
-		note: roomNameToNote[roomName] ?? "",
+		hasNote: Boolean(roomNameToNote[roomName]),
+		noteContent: roomNameToNote[roomName]?.content ?? "",
+		noteDateTime: roomNameToNote[roomName]?.date?.toISOString() ?? null,
+		noteHowManyMinutesAgo: howManyMinutesAgo(roomNameToNote[roomName]?.date),
 		isEmpty: (roomNameToParticipantNames[roomName]?.length ?? 0) == 0,
 		count: roomNameToParticipantNames[roomName]?.length || 0,
+		countPhrase: countPhrase(roomNameToParticipantNames[roomName]?.length || 0),
 		participants:
 			roomNameToParticipantNames[roomName]?.map((participantName) => ({
 				participantName,
@@ -1048,4 +1060,36 @@ const getTodayDateForHubVisitsAPI = () => {
 	date = date.toISOString();
 	// Format date as `yyyy-mm-dd`
 	return date.slice(0, date.indexOf("T"));
+};
+
+// Minutes in milliseconds
+const MIN = 1000 * 60;
+const howManyMinutesAgo = (date) => {
+	if (!date) return null;
+	const millisNow = Date.now();
+	const millisThen = date.getTime();
+	const difference = millisNow - millisThen;
+	return difference < 0
+		? "in the future?" // ???
+		: difference < 2 * MIN
+		? "just now"
+		: difference < 5 * MIN
+		? "a few minutes ago"
+		: difference < 10 * MIN
+		? "five-ish minutes ago"
+		: difference < 20 * MIN
+		? "15 minutes ago"
+		: difference < 30 * MIN
+		? "recently"
+		: difference < 45 * MIN
+		? "a half hour ago"
+		: difference < 60 * MIN
+		? "45 min ago"
+		: difference < 60 * MIN
+		? "over an hour ago"
+		: "a while ago";
+};
+
+const countPhrase = (count) => {
+	return count === 0 ? "empty" : count === 1 ? "1 person" : `${count} people`;
 };
