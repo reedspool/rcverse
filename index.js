@@ -143,6 +143,16 @@ zoomRooms.forEach(({ roomName, ...rest }) => {
 	zoomRoomsByName[roomName] = { roomName, ...rest };
 });
 
+// Zoom Rooms that are reported but that we purposely don't track
+const silentZoomRooms = [
+	"Sonali's Studio",
+	"Sydney, Australia",
+	"Nick's Nook",
+	"Laura’s Office",
+	"Cat Viewing Portal",
+	"Adventure Time With Finn",
+];
+
 // NOTE: To test on the original host instead of the `recurse.com` proxy,
 //       change the production base domain to the domain of the host.
 //       You'll also need to change the OAuth Client ID and Client Secret to
@@ -206,7 +216,11 @@ emitter.on("participant-room-data-reset", async () => {
 emitter.on("participant-room-data", async (entity) => {
 	let { roomName, participantName, faceMarkerImagePath, inTheHub } = entity;
 
-	if (roomName !== null && !zoomRoomNames.includes(roomName)) {
+	if (
+		roomName !== null &&
+		!zoomRoomNames.includes(roomName) &&
+		!silentZoomRooms.includes(roomName)
+	) {
 		// TODO don't kill the server but be loud about this confusion in the future
 		console.error(`Surprising zoom room name '${roomName}'`);
 		return;
