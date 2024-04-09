@@ -667,6 +667,14 @@ app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
 });
 
 const rcUserIdToCustomization = {};
+// Currently unused, adds a text field to submit a note when you check in
+app.get(
+	"/checkIntoHub.html",
+	isSessionAuthenticatedMiddleware,
+	function (req, res) {
+		res.send(CheckIntoHubForm());
+	},
+);
 
 app.post(
 	`/checkIntoHub`,
