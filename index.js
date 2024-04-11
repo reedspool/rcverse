@@ -684,6 +684,27 @@ app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
 	res.send(EditNoteForm(mungeEditNoteForm({ roomName, roomNameToNote })));
 });
 
+// Every hour, clean up any notes which haven't been updated for 4 hours
+function cleanNotes() {
+	const millisNow = Date.now();
+	Object.keys(roomNameToNote).forEach((roomName) => {
+		if (!roomNameToNote[roomName]) return;
+		const content = roomNameToNote[roomName]?.content;
+		if (typeof content === "string" && !content.match(/\S/)) {
+			roomNameToNote[roomName] = null;
+		}
+		const date = roomNameToNote[roomName]?.date;
+		if (!date) return;
+		const millisThen = date.getTime();
+		const difference = millisNow - millisThen;
+		if (difference < 1000 * 60 * 60 * 4) return; // 4 hours
+		roomNameToNote[roomName] = null;
+	});
+
+	setTimeout(cleanNotes, 1000 * 60 * 60); // 1 hour
+}
+cleanNotes();
+
 // Currently unused, adds a text field to submit a note when you check in
 app.get(
 	"/checkIntoHub.html",
