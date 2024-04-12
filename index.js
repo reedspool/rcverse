@@ -999,6 +999,10 @@ const mungeRoom = ({
 		nowEventStartedHowManyMinutesAgo: howManyMinutesAgo(
 			locationToNowAndNextEvents[roomLocation]?.now?.[0]?.start,
 		),
+		nowEventDateTime:
+			locationToNowAndNextEvents[
+				roomLocation
+			]?.now?.[0]?.start?.toISOString() ?? null,
 		nowEventCalendarUrl:
 			locationToNowAndNextEvents[roomLocation]?.now?.[0]?.url,
 		hasNextEvent: locationToNowAndNextEvents[roomLocation]?.next?.[0],
@@ -1006,6 +1010,10 @@ const mungeRoom = ({
 		nextEventStartsInHowLong: howLongInTheFuture(
 			locationToNowAndNextEvents[roomLocation]?.next?.[0]?.start,
 		),
+		nextEventDateTime:
+			locationToNowAndNextEvents[
+				roomLocation
+			]?.next?.[0]?.start?.toISOString() ?? null,
 		nextEventCalendarUrl:
 			locationToNowAndNextEvents[roomLocation]?.next?.[0]?.url,
 	};

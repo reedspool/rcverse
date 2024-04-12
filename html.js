@@ -212,10 +212,12 @@ export const Room = ({
   nowEventName,
   nowEventStartedHowManyMinutesAgo,
   nowEventCalendarUrl,
+  nowEventDateTime,
   hasNextEvent,
   nextEventName,
   nextEventStartsInHowLong,
   nextEventCalendarUrl,
+  nextEventDateTime,
 }) => `
       <div id="room-update-${roomName.replaceAll(
         " ",
@@ -240,12 +242,26 @@ export const Room = ({
             ${Participants({ participants })}
             ${
               hasNowEvent
-                ? `<div><a href="${nowEventCalendarUrl}" target="_blank">${nowEventName}</a> started ${nowEventStartedHowManyMinutesAgo}</div> `
+                ? `
+                   <div class="room__event-now">
+                     <a href="${nowEventCalendarUrl}" target="_blank">${nowEventName}</a>
+                     started
+                     <time datetime="${nowEventDateTime}" title="${nowEventDateTime} UTC">
+                       ${nowEventStartedHowManyMinutesAgo}
+                     </time>
+                   </div> `
                 : ""
             }
             ${
               hasNextEvent
-                ? `<div><a href="${nextEventCalendarUrl}" target="_blank">${nextEventName}</a> starts ${nextEventStartsInHowLong}</div> `
+                ? `
+                   <div class="room__event-next">
+                     <a href="${nextEventCalendarUrl}" target="_blank">${nextEventName}</a>
+                     starts
+                     <time datetime="${nextEventDateTime}" title="${nextEventDateTime} UTC">
+                       ${nextEventStartsInHowLong}
+                     </time>
+                   </div> `
                 : ""
             }
             ${Note({
@@ -279,9 +295,9 @@ export const Note = ({
     >${hasNote ? "Edit note" : "Add note"}</button>
     ${
       hasNote
-        ? `<span class="room__note-update-time">
+        ? `<span class="room__note-update-time" title="${noteDateTime} UTC">
              Updated
-             <time datetime="${noteDateTime}" title="${noteDateTime} UTC">
+             <time datetime="${noteDateTime}">
                ${noteHowManyMinutesAgo}
              </time>
            </span>`
