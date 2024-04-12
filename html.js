@@ -199,7 +199,7 @@ ${
 };
 
 export const Room = ({
-  roomHref,
+  roomLocation,
   roomName,
   isEmpty,
   participants,
@@ -208,6 +208,14 @@ export const Room = ({
   noteDateTime,
   noteHowManyMinutesAgo,
   countPhrase,
+  hasNowEvent,
+  nowEventName,
+  nowEventStartedHowManyMinutesAgo,
+  nowEventCalendarUrl,
+  hasNextEvent,
+  nextEventName,
+  nextEventStartsInHowLong,
+  nextEventCalendarUrl,
 }) => `
       <div id="room-update-${roomName.replaceAll(
         " ",
@@ -219,7 +227,7 @@ export const Room = ({
               <span class="room__title">${roomName}</span>
               <a
                 class="room__join"
-                href="${roomHref}"
+                href="${roomLocation}"
                 target="_blank"
                 rel="noopener noreferrer"
                 >
@@ -230,6 +238,16 @@ export const Room = ({
           </dt>
           <dd class="room__details">
             ${Participants({ participants })}
+            ${
+              hasNowEvent
+                ? `<div><a href="${nowEventCalendarUrl}" target="_blank">${nowEventName}</a> started ${nowEventStartedHowManyMinutesAgo}</div> `
+                : ""
+            }
+            ${
+              hasNextEvent
+                ? `<div><a href="${nextEventCalendarUrl}" target="_blank">${nextEventName}</a> starts ${nextEventStartsInHowLong}</div> `
+                : ""
+            }
             ${Note({
               roomName,
               hasNote,

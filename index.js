@@ -26,7 +26,7 @@ import {
 	escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
-
+import ical from "node-ical";
 import fs from "node:fs";
 
 // Catch and snuff all uncaught exceptions and uncaught promise rejections.
@@ -60,79 +60,79 @@ expressWebsockets(app);
 
 const zoomRooms = [
 	{
-		href: "https://recurse.com/zoom/aegis",
+		location: "https://www.recurse.com/zoom/aegis",
 		roomName: "Aegis",
 	},
 	{
-		href: "https://recurse.com/zoom/arca",
+		location: "https://www.recurse.com/zoom/arca",
 		roomName: "Arca",
 	},
 	{
-		href: "https://recurse.com/zoom/edos",
+		location: "https://www.recurse.com/zoom/edos",
 		roomName: "Edos",
 	},
 	{
-		href: "https://recurse.com/zoom/genera",
+		location: "https://www.recurse.com/zoom/genera",
 		roomName: "Genera",
 	},
 	{
-		href: "https://recurse.com/zoom/midori",
+		location: "https://www.recurse.com/zoom/midori",
 		roomName: "Midori",
 	},
 	{
-		href: "https://recurse.com/zoom/verve",
+		location: "https://www.recurse.com/zoom/verve",
 		roomName: "Verve",
 	},
 	{
-		href: "https://recurse.com/zoom/couches",
+		location: "https://www.recurse.com/zoom/couches",
 		roomName: "Couches",
 	},
 	{
-		href: "https://recurse.com/zoom/kitchen",
+		location: "https://www.recurse.com/zoom/kitchen",
 		roomName: "Kitchen",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_1",
+		location: "https://www.recurse.com/zoom/pairing_station_1",
 		roomName: "Pairing Station 1",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_2",
+		location: "https://www.recurse.com/zoom/pairing_station_2",
 		roomName: "Pairing Station 2",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_3",
+		location: "https://www.recurse.com/zoom/pairing_station_3",
 		roomName: "Pairing Station 3",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_4",
+		location: "https://www.recurse.com/zoom/pairing_station_4",
 		roomName: "Pairing Station 4",
 	},
 	{
-		href: "https://recurse.com/zoom/pairing_station_5",
+		location: "https://www.recurse.com/zoom/pairing_station_5",
 		roomName: "Pairing Station 5",
 	},
 	{
-		href: "https://recurse.rctogether.com/zoom_meetings/35980/join",
+		location: "https://recurse.rctogether.com/zoom_meetings/35980/join",
 		roomName: "Pairing Station 6",
 	},
 	{
-		href: "https://recurse.rctogether.com/zoom_meetings/35983/join",
+		location: "https://recurse.rctogether.com/zoom_meetings/35983/join",
 		roomName: "Pairing Station 7",
 	},
 	{
-		href: "https://recurse.com/zoom/pomodoro_room",
+		location: "https://www.recurse.com/zoom/pomodoro_room",
 		roomName: "Pomodoro Room",
 	},
 	{
-		href: "https://recurse.com/zoom/presentation_space",
+		location: "https://www.recurse.com/zoom/presentation_space",
 		roomName: "Presentation Space",
 	},
 	{
-		href: "https://recurse.com/zoom/faculty_area",
+		location: "https://www.recurse.com/zoom/faculty_area",
 		roomName: "Faculty Area",
 	},
 	{
-		href: "https://recurse.com/zoom/faculty_lounge",
+		location: "https://www.recurse.com/zoom/faculty_lounge",
 		roomName: "Faculty Lounge",
 	},
 ];
@@ -141,6 +141,10 @@ const zoomRoomNames = zoomRooms.map(({ roomName }) => roomName);
 const zoomRoomsByName = {};
 zoomRooms.forEach(({ roomName, ...rest }) => {
 	zoomRoomsByName[roomName] = { roomName, ...rest };
+});
+const zoomRoomsByLocation = {};
+zoomRooms.forEach(({ location, ...rest }) => {
+	zoomRoomsByLocation[location] = { location, ...rest };
 });
 
 // Zoom Rooms that are reported but that we purposely don't track
@@ -195,6 +199,9 @@ const secretAuthToken = process.env.SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE;
 
 // Mixpanel
 const mixpanelToken = process.env.MIXPANEL_TOKEN;
+
+// Recurse.com Calendar
+const recurseCalendarToken = process.env.RECURSE_CALENDAR_TOKEN;
 
 let inTheHubParticipantNames = [];
 let roomNameToParticipantNames = {};
@@ -612,10 +619,11 @@ app.ws("/websocket", async function (ws, req) {
 			Room(
 				mungeRoom({
 					roomName,
-					roomHref: zoomRoomsByName[roomName].href,
+					roomLocation: zoomRoomsByName[roomName].location,
 					roomNameToNote,
 					roomNameToParticipantNames,
 					participantNameToEntity,
+					locationToNowAndNextEvents,
 				}),
 			),
 		);
@@ -704,6 +712,60 @@ function cleanNotes() {
 	setTimeout(cleanNotes, 1000 * 60 * 60); // 1 hour
 }
 cleanNotes();
+
+let locationToNowAndNextEvents = {};
+async function updateCalendar() {
+	const now = new Date();
+	const tomorrow = new Date();
+	tomorrow.setTime(tomorrow.getTime() + 1000 * 60 * 60 * 24);
+	const yesterday = new Date();
+	yesterday.setTime(yesterday.getTime() - 1000 * 60 * 60 * 24);
+	const soonish = new Date();
+	soonish.setTime(soonish.getTime() + 1000 * 60 * 80); // 80 minutes
+	const ics = await ical.async.fromURL(
+		`https://www.recurse.com/calendar/events.ics?token=${recurseCalendarToken}&omit_cancelled_events=1&scope=all`,
+	);
+
+	const locationToEvents = {};
+	Object.entries(ics).forEach(([_, event]) => {
+		const { location, start, end } = event;
+		let keep = true;
+		keep &&= event.type === "VEVENT";
+		keep &&= location in zoomRoomsByLocation;
+		keep &&= start >= yesterday; // Starts less than 24 hours ago
+		keep &&= end <= tomorrow; // Ends less than 24 hours from now
+		keep &&= now <= end; // Hasn't ended yet
+		if (!keep) return;
+
+		if (!locationToEvents[location]) {
+			locationToEvents[location] = [];
+		}
+		locationToEvents[location].push(event);
+	});
+
+	locationToNowAndNextEvents = {};
+	Object.entries(locationToEvents).forEach(([location, events]) => {
+		events.sort((a, b) => a.start - b.start);
+
+		locationToNowAndNextEvents[location] = {
+			now: [],
+			next: [],
+		};
+
+		events.forEach((event) => {
+			const { start } = event;
+
+			if (start <= now) {
+				locationToNowAndNextEvents[location].now.push(event);
+			} else if (start <= soonish) {
+				locationToNowAndNextEvents[location].next.push(event);
+			}
+		});
+	});
+
+	setTimeout(updateCalendar, 1000 * 60 * 10);
+}
+updateCalendar();
 
 // Currently unused, adds a text field to submit a note when you check in
 app.get(
@@ -844,10 +906,11 @@ const mungeRootBody = ({
 	const rooms = zoomRooms.map(({ roomName }) =>
 		mungeRoom({
 			roomName,
-			roomHref: zoomRoomsByName[roomName].href,
+			roomLocation: zoomRoomsByName[roomName].location,
 			roomNameToNote,
 			roomNameToParticipantNames,
 			participantNameToEntity,
+			locationToNowAndNextEvents,
 		}),
 	);
 
@@ -908,14 +971,15 @@ const mungeCustomization = ({
 
 const mungeRoom = ({
 	roomName,
-	roomHref,
+	roomLocation,
 	roomNameToNote,
 	roomNameToParticipantNames,
 	participantNameToEntity,
+	locationToNowAndNextEvents,
 }) => {
 	return {
 		roomName,
-		roomHref,
+		roomLocation,
 		hasNote: Boolean(roomNameToNote[roomName]),
 		noteContent: roomNameToNote[roomName]?.content ?? "",
 		noteDateTime: roomNameToNote[roomName]?.date?.toISOString() ?? null,
@@ -930,6 +994,20 @@ const mungeRoom = ({
 					participantNameToEntity[participantName]?.faceMarkerImagePath ??
 					"recurse-community-bot.png",
 			})) ?? [],
+		hasNowEvent: locationToNowAndNextEvents[roomLocation]?.now?.[0],
+		nowEventName: locationToNowAndNextEvents[roomLocation]?.now?.[0]?.summary,
+		nowEventStartedHowManyMinutesAgo: howManyMinutesAgo(
+			locationToNowAndNextEvents[roomLocation]?.now?.[0]?.start,
+		),
+		nowEventCalendarUrl:
+			locationToNowAndNextEvents[roomLocation]?.now?.[0]?.url,
+		hasNextEvent: locationToNowAndNextEvents[roomLocation]?.next?.[0],
+		nextEventName: locationToNowAndNextEvents[roomLocation]?.next?.[0]?.summary,
+		nextEventStartsInHowLong: howLongInTheFuture(
+			locationToNowAndNextEvents[roomLocation]?.next?.[0]?.start,
+		),
+		nextEventCalendarUrl:
+			locationToNowAndNextEvents[roomLocation]?.next?.[0]?.url,
 	};
 };
 
@@ -1103,9 +1181,35 @@ const howManyMinutesAgo = (date) => {
 		? "a half hour ago"
 		: difference < 60 * MIN
 		? "45 min ago"
-		: difference < 60 * MIN
+		: difference < 80 * MIN
 		? "over an hour ago"
 		: "a while ago";
+};
+
+const howLongInTheFuture = (date) => {
+	if (!date) return null;
+	const millisNow = Date.now();
+	const millisThen = date.getTime();
+	const difference = millisThen - millisNow;
+	return difference < 0
+		? "in the past?" // ???
+		: difference < 2 * MIN
+		? "now"
+		: difference < 5 * MIN
+		? "in a few minutes"
+		: difference < 10 * MIN
+		? "in five-ish minutes"
+		: difference < 20 * MIN
+		? "in 15 minutes"
+		: difference < 30 * MIN
+		? "in 20 minutes"
+		: difference < 45 * MIN
+		? "in a half hour"
+		: difference < 60 * MIN
+		? "in 45 min"
+		: difference < 80 * MIN
+		? "in just over an hour"
+		: "in quite a while";
 };
 
 const countPhrase = (count) => {

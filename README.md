@@ -49,6 +49,10 @@ CREATE TABLE user_session (
 
 Go to https://recurse.rctogether.com/apps and make a new application, then plug in your App ID and App secret into `ACTION_CABLE_APP_ID` and `ACTION_CABLE_APP_SECRET` in your `config.env`.
 
+## Recurse.com Calendar
+
+The calendar integration downloads the iCalendar export (`.ics`) from the Recurse.com calendar application. Go to [recurse.com/settings/calendar](https://www.recurse.com/settings/calendar). In the `Subscription URL` field, you'll find a URL. That URL will have a query parameter called `token`. Paste the value of that token (everything _after_ `token=`, not including those characters) into the `RECURSE_CALENDAR_TOKEN` value in your `config.env`.
+
 ## Super Secret Auth Bypass Token
 
 In `config.env.template` you will see `SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE`. This is used to bypass authentication for the special case where a kiosk like RCTV needs a hard-coded authentication instead of RC OAuth. This should only be used for local testing or in the case of a kiosk, it should never be stored in plain text or be visible to anyone in plain text. RCTV will hide this specific URL to hide this token. `crypto.randomUUID()` is a good way to make a new UUID for this purpose. Maybe prepend a signifier like `rctv-` to the UUID produced, so if it gets leaked you have some inkling where its from.
