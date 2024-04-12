@@ -1244,5 +1244,5 @@ const howLongInTheFuture = (date) => {
 };
 
 const countPhrase = (count) => {
-	return count === 0 ? "empty" : count === 1 ? "1 person" : `${count} people`;
+	return count === 0 ? "" : count === 1 ? "1 person" : `${count} people`;
 };
