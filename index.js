@@ -567,7 +567,7 @@ app.get(
 		const noCustomizations = typeof basic !== "undefined";
 
 		// `?sort=none` uses the default ordering instead of sort by count
-		const sortRoomsByParticipantCount = sort !== "none";
+		const sortRooms = sort !== "none";
 
 		res.send(
 			// TODO: Cache an authenticated version and an unauthenticated version
@@ -587,7 +587,8 @@ app.get(
 						myParticipantName: req.locals.rcPersonName,
 						noCustomizations,
 						inTheHubParticipantNames,
-						sortRoomsByParticipantCount,
+						sortRooms,
+						locationToNowAndNextEvents,
 					}),
 				),
 				mixpanelToken,
@@ -896,7 +897,8 @@ const mungeRootBody = ({
 	myParticipantName,
 	noCustomizations,
 	inTheHubParticipantNames,
-	sortRoomsByParticipantCount,
+	sortRooms,
+	locationToNowAndNextEvents,
 }) => {
 	const whoIsInTheHub = mungeWhoIsInTheHub({
 		inTheHubParticipantNames,
@@ -914,8 +916,29 @@ const mungeRootBody = ({
 		}),
 	);
 
-	if (sortRoomsByParticipantCount) {
-		rooms.sort(({ count: a }, { count: b }) => b - a);
+	if (sortRooms) {
+		rooms.sort((a, b) => {
+			// Primary sort by participant count (more people -> appears first)
+			const countComparison = b.count - a.count;
+			if (countComparison !== 0) return countComparison;
+
+			// Secondary sort by current or upcoming events
+			// earlier events with smaller "start" value -> appears first
+			// (note that this is the reverse of the above sort order)
+			const aNowEventStart =
+				locationToNowAndNextEvents[a.roomLocation]?.now?.[0]?.start;
+			const aNextEventStart =
+				locationToNowAndNextEvents[a.roomLocation]?.next?.[0]?.start;
+			const bNowEventStart =
+				locationToNowAndNextEvents[b.roomLocation]?.now?.[0]?.start;
+			const bNextEventStart =
+				locationToNowAndNextEvents[b.roomLocation]?.next?.[0]?.start;
+
+			return (
+				(aNowEventStart ?? aNextEventStart ?? Infinity) -
+				(bNowEventStart ?? bNextEventStart ?? Infinity)
+			);
+		});
 	}
 
 	const myCustomization =
