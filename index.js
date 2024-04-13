@@ -714,8 +714,25 @@ function cleanNotes() {
 }
 cleanNotes();
 
+// We only need to update from the remote rarely, since the calendar doesn't
+// change quickly very often (people rarely cancel things last minute)
+// But we want to update the "starts in 5 minutes" quotes very often throughout
+// the day, so make two separate loops, one for refreshing from remote, and one
+// for refreshing from the current information
+// TODO: Could make a button from the front-end to trigger a refresh manually
 let locationToNowAndNextEvents = {};
-async function updateCalendar() {
+let iCalendar = {};
+async function updateCalendarFromRemote() {
+	iCalendar = await ical.async.fromURL(
+		`https://www.recurse.com/calendar/events.ics?token=${recurseCalendarToken}&omit_cancelled_events=1&scope=all`,
+	);
+	updateRoomsAsCalendarEventsChangeOverTime();
+
+	setTimeout(updateCalendarFromRemote, 1000 * 60 * 30);
+}
+updateCalendarFromRemote();
+
+function updateRoomsAsCalendarEventsChangeOverTime() {
 	const now = new Date();
 	const tomorrow = new Date();
 	tomorrow.setTime(tomorrow.getTime() + 1000 * 60 * 60 * 24);
@@ -723,17 +740,13 @@ async function updateCalendar() {
 	yesterday.setTime(yesterday.getTime() - 1000 * 60 * 60 * 24);
 	const soonish = new Date();
 	soonish.setTime(soonish.getTime() + 1000 * 60 * 80); // 80 minutes
-	const ics = await ical.async.fromURL(
-		`https://www.recurse.com/calendar/events.ics?token=${recurseCalendarToken}&omit_cancelled_events=1&scope=all`,
-	);
-
 	const locationToEvents = {};
-	Object.entries(ics).forEach(([_, event]) => {
+	Object.entries(iCalendar).forEach(([_, event]) => {
 		const { location, start, end } = event;
 		let keep = true;
 		keep &&= event.type === "VEVENT";
 		keep &&= location in zoomRoomsByLocation;
-		keep &&= start >= yesterday; // Starts less than 24 hours ago
+		keep &&= start >= yesterday; // Started less than 24 hours ago
 		keep &&= end <= tomorrow; // Ends less than 24 hours from now
 		keep &&= now <= end; // Hasn't ended yet
 		if (!keep) return;
@@ -779,9 +792,8 @@ async function updateCalendar() {
 		emitter.emit("room-change", "events", "changed for", roomName);
 	});
 
-	setTimeout(updateCalendar, 1000 * 60 * 10);
+	setTimeout(updateRoomsAsCalendarEventsChangeOverTime, 1000 * 60 * 5);
 }
-updateCalendar();
 
 // Currently unused, adds a text field to submit a note when you check in
 app.get(
