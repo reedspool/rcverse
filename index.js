@@ -744,6 +744,15 @@ async function updateCalendar() {
 		locationToEvents[location].push(event);
 	});
 
+	// Before we drop the old events object, record which rooms had an event
+	const roomNamesWithEvents = new Set();
+	Object.entries(locationToNowAndNextEvents).forEach(
+		([location, { now, next }]) => {
+			if (now.length === 0 && next.length === 0) return;
+			roomNamesWithEvents.add(zoomRoomsByLocation[location].roomName);
+		},
+	);
+
 	locationToNowAndNextEvents = {};
 	Object.entries(locationToEvents).forEach(([location, events]) => {
 		events.sort((a, b) => a.start - b.start);
@@ -758,10 +767,16 @@ async function updateCalendar() {
 
 			if (start <= now) {
 				locationToNowAndNextEvents[location].now.push(event);
+				roomNamesWithEvents.add(zoomRoomsByLocation[location].roomName);
 			} else if (start <= soonish) {
 				locationToNowAndNextEvents[location].next.push(event);
+				roomNamesWithEvents.add(zoomRoomsByLocation[location].roomName);
 			}
 		});
+	});
+
+	roomNamesWithEvents.forEach((roomName) => {
+		emitter.emit("room-change", "events", "changed for", roomName);
 	});
 
 	setTimeout(updateCalendar, 1000 * 60 * 10);
