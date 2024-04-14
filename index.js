@@ -399,53 +399,45 @@ const isSessionAuthenticatedMiddleware = async (req, res, next) => {
 		return next();
 	}
 
-	// NOTE: If you're confused about why you're never logged in
-	//       It's probably this line and there's probably an error above.
 	req.locals.authenticated = false;
-	if (req.locals.session?.refresh_token) {
-		try {
-			// Again the oslo docs are wrong, or at least inspecific.
-			// Source don't lie, though! https://github.com/pilcrowOnPaper/oslo/blob/main/src/oauth2/index.ts#L76
-			const { access_token, refresh_token } =
-				await oauthClient.refreshAccessToken(
-					req.locals.session?.refresh_token,
-					{
-						credentials: clientSecret,
-						authenticateWith: "request_body",
-					},
+	if (!req.locals.session?.refresh_token) return next();
+
+	try {
+		// Again the oslo docs are wrong, or at least inspecific.
+		// Source don't lie, though! https://github.com/pilcrowOnPaper/oslo/blob/main/src/oauth2/index.ts#L76
+		const { access_token, refresh_token } =
+			await oauthClient.refreshAccessToken(req.locals.session?.refresh_token, {
+				credentials: clientSecret,
+				authenticateWith: "request_body",
+			});
+
+		await sql.query(
+			"update user_session set refresh_token = $1 where id = $2",
+			[refresh_token, req.locals.session?.id],
+		);
+
+		req.locals.authenticated = true;
+		req.locals.access_token = access_token;
+	} catch (e) {
+		if (e instanceof OAuth2RequestError) {
+			// see https://www.rfc-editor.org/rfc/rfc6749#section-5.2
+			const { request, message, description } = e;
+
+			if (message === "invalid_grant") {
+				console.log(
+					"A user's authentication was rejected due to an invalid grant.",
 				);
-
-			await sql.query(
-				"update user_session set refresh_token = $1 where id = $2",
-				[refresh_token, req.locals.session?.id],
-			);
-
-			req.locals.authenticated = true;
-			req.locals.access_token = access_token;
-			return next();
-		} catch (e) {
-			if (e instanceof OAuth2RequestError) {
-				// see https://www.rfc-editor.org/rfc/rfc6749#section-5.2
-				const { request, message, description } = e;
-
-				if (message === "invalid_grant") {
-					console.log(
-						"A user's authentication was rejected due to an invalid grant.",
-					);
-					return next();
-				}
+				return next();
 			}
-
-			console.error("Invalidating old session due to error", e);
-			await lucia.invalidateSession(req.locals.session?.id);
-			res.appendHeader(
-				"Set-Cookie",
-				lucia.createBlankSessionCookie().serialize(),
-			);
-			return next();
 		}
-	}
 
+		console.error("Invalidating old session due to error", e);
+		await lucia.invalidateSession(req.locals.session?.id);
+		res.appendHeader(
+			"Set-Cookie",
+			lucia.createBlankSessionCookie().serialize(),
+		);
+	}
 	return next();
 };
 
