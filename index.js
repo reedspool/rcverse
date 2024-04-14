@@ -23,6 +23,7 @@ import {
 	PauseCustomizationConfirmationButton,
 	WhoIsInTheHub,
 	CheckIntoHubForm,
+	Login,
 	escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
@@ -459,6 +460,26 @@ const getRcUserMiddleware = async (req, res, next) => {
 	return next();
 };
 
+const redirectToLoginIfNotAuthenticated = async (req, res, next) => {
+	if (req.locals?.authenticated && req.locals.access_token) return next();
+
+	res.redirect("/login");
+};
+
+const hxBlockIfNotAuthenticated = async (req, res, next) => {
+	if (req.locals?.authenticated && req.locals.access_token) return next();
+
+	res.appendHeader("HX-Redirect", "/login?reason=deauthenticated");
+	return res.status(401).send(
+		Page({
+			title: "RCVerse",
+			body: Login({}),
+			mixpanelToken,
+			myRcUserId: req.locals.rcUserId,
+		}),
+	);
+};
+
 // We track who is at the hub in two different ways. We get immediate updates
 // through the action cable stream, but that doesn't help us understand who
 // came into the hub before the server started. So we sometimes also get the
@@ -549,6 +570,7 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
 app.get(
 	"/",
 	isSessionAuthenticatedMiddleware,
+	redirectToLoginIfNotAuthenticated,
 	getRcUserMiddleware,
 	updateWhoIsAtTheHubMiddleware,
 	async (req, res) => {
@@ -569,7 +591,6 @@ app.get(
 				title: "RCVerse",
 				body: RootBody(
 					mungeRootBody({
-						authenticated: req.locals.authenticated,
 						zoomRooms,
 						roomNameToParticipantNames,
 						participantNameToEntity,
@@ -589,6 +610,21 @@ app.get(
 		);
 	},
 );
+
+const mungeLogin = ({ reason }) => {
+	return { reason };
+};
+app.get("/login", async (req, res) => {
+	const { reason } = req.query;
+	res.send(
+		Page({
+			title: "RCVerse",
+			body: Login(mungeLogin({ reason })),
+			mixpanelToken,
+			myRcUserId: req.locals.rcUserId,
+		}),
+	);
+});
 
 app.ws("/websocket", async function (ws, req) {
 	// TODO: Split up authentication mechanism instead of calling it with these
@@ -660,19 +696,24 @@ app.ws("/websocket", async function (ws, req) {
 });
 
 const roomNameToNote = {};
-app.post("/note", isSessionAuthenticatedMiddleware, function (req, res) {
-	const { room, content } = req.body;
-	roomNameToNote[room] = {
-		content: escapeHtml(content) ?? "",
-		date: new Date(),
-	};
+app.post(
+	"/note",
+	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
+	function (req, res) {
+		const { room, content } = req.body;
+		roomNameToNote[room] = {
+			content: escapeHtml(content) ?? "",
+			date: new Date(),
+		};
 
-	console.log(`Room '${room}' note changed to ${content} (pre-escape)`);
+		console.log(`Room '${room}' note changed to ${content} (pre-escape)`);
 
-	emitter.emit("room-change", "someone", "updated the note for", room);
+		emitter.emit("room-change", "someone", "updated the note for", room);
 
-	res.status(200).end();
-});
+		res.status(200).end();
+	},
+);
 
 const mungeEditNoteForm = ({ roomName, roomNameToNote }) => ({
 	roomName,
@@ -791,6 +832,7 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
 app.get(
 	"/checkIntoHub.html",
 	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
 	function (req, res) {
 		res.send(CheckIntoHubForm());
 	},
@@ -799,6 +841,7 @@ app.get(
 app.post(
 	`/checkIntoHub`,
 	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
 	getRcUserMiddleware,
 	async (req, res) => {
 		const { note } = req.body;
@@ -823,6 +866,7 @@ const rcUserIdToCustomization = {};
 app.post(
 	"/customization",
 	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
 	getRcUserMiddleware,
 	function (req, res) {
 		const { code } = req.body;
@@ -852,6 +896,7 @@ app.post(
 app.post(
 	"/pauseCustomizationConfirmation.html",
 	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
 	function (req, res) {
 		const { rcUserId } = req.query;
 
@@ -862,6 +907,7 @@ app.post(
 app.post(
 	"/pauseCustomization",
 	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
 	getRcUserMiddleware,
 	function (req, res) {
 		const { rcUserId: pauseCustomizationRcUserId } = req.query;
@@ -893,6 +939,7 @@ app.post(
 app.get(
 	"/editCustomization.html",
 	isSessionAuthenticatedMiddleware,
+	hxBlockIfNotAuthenticated,
 	getRcUserMiddleware,
 	function (req, res) {
 		const { code } = rcUserIdToCustomization[req.locals.rcUserId] ?? {
@@ -906,7 +953,6 @@ app.get(
 // Data mungers take the craziness of the internal data structures
 // and make them peaceful and clean for the HTML generator
 const mungeRootBody = ({
-	authenticated,
 	zoomRooms,
 	roomNameToParticipantNames,
 	participantNameToEntity,
@@ -981,7 +1027,6 @@ const mungeRootBody = ({
 			);
 
 	return {
-		authenticated,
 		whoIsInTheHub,
 		rooms,
 		otherCustomizations,
@@ -1081,7 +1126,7 @@ const mungeWhoIsInTheHub = ({
 app.get("/logout", async (req, res) => {
 	lucia.invalidateSession(req.locals.session?.id);
 
-	res.redirect("/");
+	res.redirect("/login");
 });
 
 const oauthStateCookieName = "rc-verse-login-oauth-state";

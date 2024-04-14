@@ -45,7 +45,6 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => `
 `;
 
 export const RootBody = ({
-  authenticated,
   rooms,
   myCustomization,
   otherCustomizations,
@@ -57,8 +56,7 @@ export const RootBody = ({
   body += `<h2>Whatever you make it</h2>
   `;
 
-  if (authenticated) {
-    body += `
+  body += `
 <details>
 <summary>About</summary>
 
@@ -187,16 +185,27 @@ ${
 
         <p>You\'re logged in! - <a href="/logout">logout</a></p>
     `;
-  } else {
-    body += `
-      <p><a href="/getAuthorizationUrl">Login</a></p>
-        `;
-  }
-
   body += `</main>`;
 
   return body;
 };
+
+export const Login = ({ reason } = { reason: "" }) => `
+  <main>
+    <h1>RCVerse</h1>
+    <h2>Whatever you make it</h2>
+    ${
+      reason === "deauthenticated"
+        ? `<p>
+          RC Auth said you're not logged in.
+          This might be temporary, so you might try to refresh and be logged in.
+          Please let Reed know if this happens frequently.
+        </p>`
+        : ""
+    }
+    <p><a href="/getAuthorizationUrl">Login</a></p>
+  </main>
+`;
 
 export const Room = ({
   roomLocation,
@@ -341,9 +350,8 @@ export const Customization = ({
   isNew,
   isPaused,
 }) => `
-      <div id="customization-update-${String(rcUserId).replaceAll(
-        " ",
-        "-",
+      <div id="customization-update-${String(
+        rcUserId,
       )}" class="display-contents" hx-swap-oob="${
         isNew ? "afterbegin" : "true"
       }">
