@@ -761,10 +761,12 @@ async function updateCalendarFromRemote() {
 	);
 	updateRoomsAsCalendarEventsChangeOverTime();
 
+	clearTimeout(timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime);
 	setTimeout(updateCalendarFromRemote, 1000 * 60 * 30);
 }
 updateCalendarFromRemote();
 
+let timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime;
 function updateRoomsAsCalendarEventsChangeOverTime() {
 	const now = new Date();
 	const tomorrow = new Date();
@@ -825,7 +827,10 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
 		emitter.emit("room-change", "events", "changed for", roomName);
 	});
 
-	setTimeout(updateRoomsAsCalendarEventsChangeOverTime, 1000 * 60 * 5);
+	timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime = setTimeout(
+		updateRoomsAsCalendarEventsChangeOverTime,
+		1000 * 60 * 5,
+	);
 }
 
 // Currently unused, adds a text field to submit a note when you check in
