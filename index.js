@@ -767,8 +767,13 @@ async function updateCalendarFromRemote() {
 updateCalendarFromRemote();
 
 let timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime;
+const calendarUpdateDelay = 1000 * 60 * 5;
 function updateRoomsAsCalendarEventsChangeOverTime() {
 	const now = new Date();
+	const nowPlusCalendarDelay = new Date();
+	nowPlusCalendarDelay.setTime(
+		nowPlusCalendarDelay.getTime() + calendarUpdateDelay,
+	);
 	const tomorrow = new Date();
 	tomorrow.setTime(tomorrow.getTime() + 1000 * 60 * 60 * 24);
 	const yesterday = new Date();
@@ -813,7 +818,7 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
 		events.forEach((event) => {
 			const { start } = event;
 
-			if (start <= now) {
+			if (start <= nowPlusCalendarDelay) {
 				locationToNowAndNextEvents[location].now.push(event);
 				roomNamesWithEvents.add(zoomRoomsByLocation[location].roomName);
 			} else if (start <= soonish) {
@@ -829,7 +834,7 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
 
 	timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime = setTimeout(
 		updateRoomsAsCalendarEventsChangeOverTime,
-		1000 * 60 * 5,
+		calendarUpdateDelay,
 	);
 }
 
