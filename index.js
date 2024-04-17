@@ -987,12 +987,10 @@ const mungeRootBody = ({
 	);
 
 	if (sortRooms) {
+		const inAYear = new Date();
+		inAYear.setTime(inAYear.getTime() + 1000 * 60 * 60 * 24 * 365);
 		rooms.sort((a, b) => {
-			// Primary sort by participant count (more people -> appears first)
-			const countComparison = b.count - a.count;
-			if (countComparison !== 0) return countComparison;
-
-			// Secondary sort by current or upcoming events
+			// Primary sort by current or upcoming events
 			// earlier events with smaller "start" value -> appears first
 			// (note that this is the reverse of the above sort order)
 			const aNowEventStart =
@@ -1004,10 +1002,14 @@ const mungeRootBody = ({
 			const bNextEventStart =
 				locationToNowAndNextEvents[b.roomLocation]?.next?.[0]?.start;
 
-			return (
-				(aNowEventStart ?? aNextEventStart ?? Infinity) -
-				(bNowEventStart ?? bNextEventStart ?? Infinity)
-			);
+			const comparison =
+				(aNowEventStart ?? aNextEventStart ?? inAYear) -
+				(bNowEventStart ?? bNextEventStart ?? inAYear);
+
+			if (comparison !== 0) return comparison;
+
+			// Secondary sort by participant count (more people -> appears first)
+			return b.count - a.count;
 		});
 	}
 
