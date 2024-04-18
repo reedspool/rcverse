@@ -222,7 +222,8 @@ emitter.on("participant-room-data-reset", async () => {
 	participantNameToEntity = {};
 });
 emitter.on("participant-room-data", async (entity) => {
-	let { roomName, participantName, faceMarkerImagePath, inTheHub } = entity;
+	let { roomName, participantName, faceMarkerImagePath, inTheHub, lastBatch } =
+		entity;
 
 	if (roomName !== null && !zoomRoomNames.includes(roomName)) {
 		if (!silentZoomRooms.includes(roomName)) {
@@ -251,6 +252,7 @@ emitter.on("participant-room-data", async (entity) => {
 		participantNameToEntity[participantName] = {
 			...participantNameToEntity[participantName],
 			inTheHub,
+			lastBatch,
 		};
 		emitter.emit("in-the-hub-change");
 	}
@@ -273,6 +275,7 @@ emitter.on("participant-room-data", async (entity) => {
 			...participantNameToEntity[participantName],
 			roomName,
 			faceMarkerImagePath,
+			lastBatch,
 		};
 
 		verb = "enterred";
@@ -293,6 +296,7 @@ emitter.on("participant-room-data", async (entity) => {
 			...participantNameToEntity[participantName],
 			roomName,
 			faceMarkerImagePath,
+			lastBatch,
 		};
 
 		verb = "departed";
@@ -513,16 +517,12 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
 	);
 
 	const json = await fetchResponse.json();
-	inTheHubParticipantNames = [];
 	Object.keys(participantNameToEntity).forEach((participantName) => {
 		participantNameToEntity[participantName].inTheHub = false;
 	});
-	const peopleFacesToGet = [];
+	const profilesToGet = [];
 	json.forEach(({ person }) => {
-		inTheHubParticipantNames.push(person.name);
-		if (!participantNameToEntity[person.name]?.faceMarkerImagePath) {
-			peopleFacesToGet.push(person);
-		}
+		profilesToGet.push(person);
 		if (!participantNameToEntity[person.name]) {
 			participantNameToEntity[person.name] = {};
 		}
@@ -533,7 +533,7 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
 	});
 
 	await Promise.all(
-		peopleFacesToGet.map(async ({ id, name }) => {
+		profilesToGet.map(async ({ id, name }) => {
 			const fetchResponse = await fetch(
 				`https://www.recurse.com/api/v1/profiles/${id}`,
 				{
@@ -542,19 +542,22 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
 					},
 				},
 			);
-
-			const { image_path } = await fetchResponse.json();
+			const { image_path, stints } = await fetchResponse.json();
 			if (!participantNameToEntity[name]) {
 				participantNameToEntity[name] = {};
 			}
 
+			const lastBatch = stints?.[0]?.batch?.short_name ?? "";
+
 			participantNameToEntity[name] = {
 				...participantNameToEntity[name],
 				faceMarkerImagePath: image_path,
+				lastBatch,
 			};
 		}),
 	);
 
+	inTheHubParticipantNames = profilesToGet.map(({ name }) => name);
 	emitter.emit("in-the-hub-change");
 	needToUpdateWhosAtTheHub = false;
 	scheduleNeedToUpdateWhosAtTheHub();
@@ -1086,13 +1089,10 @@ const mungeRoom = ({
 		isEmpty: (roomNameToParticipantNames[roomName]?.length ?? 0) == 0,
 		count: roomNameToParticipantNames[roomName]?.length || 0,
 		countPhrase: countPhrase(roomNameToParticipantNames[roomName]?.length || 0),
-		participants:
-			roomNameToParticipantNames[roomName]?.map((participantName) => ({
-				participantName,
-				faceMarkerImagePath:
-					participantNameToEntity[participantName]?.faceMarkerImagePath ??
-					"recurse-community-bot.png",
-			})) ?? [],
+		participants: mungeParticipants({
+			participantNames: roomNameToParticipantNames[roomName] ?? [],
+			participantNameToEntity,
+		}),
 		hasNowEvent: locationToNowAndNextEvents[roomLocation]?.now?.[0],
 		nowEventName: locationToNowAndNextEvents[roomLocation]?.now?.[0]?.summary,
 		nowEventStartedHowManyMinutesAgo: howManyMinutesAgo(
@@ -1118,6 +1118,18 @@ const mungeRoom = ({
 	};
 };
 
+const mungeParticipants = ({ participantNames, participantNameToEntity }) => {
+	return (
+		participantNames.map((participantName) => ({
+			participantName,
+			faceMarkerImagePath:
+				participantNameToEntity[participantName]?.faceMarkerImagePath ??
+				"recurse-community-bot.png",
+			lastBatch: participantNameToEntity[participantName]?.lastBatch ?? "",
+		})) ?? []
+	);
+};
+
 const mungeWhoIsInTheHub = ({
 	inTheHubParticipantNames,
 	participantNameToEntity,
@@ -1125,12 +1137,10 @@ const mungeWhoIsInTheHub = ({
 }) => {
 	return {
 		isEmpty: inTheHubParticipantNames.length > 0,
-		participants: inTheHubParticipantNames.map((participantName) => ({
-			participantName,
-			faceMarkerImagePath:
-				participantNameToEntity[participantName]?.faceMarkerImagePath ??
-				"recurse-community-bot.png",
-		})),
+		participants: mungeParticipants({
+			participantNames: inTheHubParticipantNames,
+			participantNameToEntity,
+		}),
 		iAmCheckedIn: participantNameToEntity[myParticipantName]?.inTheHub,
 	};
 };

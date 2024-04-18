@@ -391,12 +391,16 @@ export const Participants = ({ participants }) =>
     .map((p) => Participant(p))
     .join("")}</div>`;
 
-export const Participant = ({ participantName, faceMarkerImagePath }) =>
+export const Participant = ({
+  participantName,
+  faceMarkerImagePath,
+  lastBatch,
+}) =>
   `
   <img
       class="participants__participant"
       src=${faceMarkerImagePath}
-      title="${participantName}">
+      title="${participantName} ${lastBatch}">
   `;
 
 export const Customization = ({

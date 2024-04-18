@@ -50,6 +50,7 @@ export function connect(APP_ID, APP_SECRET, emitter) {
             image_path,
             last_seen_at,
             rc_hub_visit_today,
+            flair,
           } = entity;
           if (type === "Avatar" && zoom_user_display_name !== null) {
             const lastSeenMillis = new Date(last_seen_at).getTime();
@@ -69,6 +70,7 @@ export function connect(APP_ID, APP_SECRET, emitter) {
               roomName: zoom_user_display_name,
               faceMarkerImagePath: image_path,
               inTheHub: rc_hub_visit_today,
+              lastBatch: flair,
             });
           }
         });
@@ -79,6 +81,7 @@ export function connect(APP_ID, APP_SECRET, emitter) {
           zoom_user_display_name,
           image_path,
           rc_hub_visit_today,
+          flair,
         } = payload;
         if (type !== "Avatar") return;
 
@@ -87,6 +90,7 @@ export function connect(APP_ID, APP_SECRET, emitter) {
           roomName: zoom_user_display_name,
           faceMarkerImagePath: image_path,
           inTheHub: rc_hub_visit_today,
+          lastBatch: flair,
         });
       }
     },
