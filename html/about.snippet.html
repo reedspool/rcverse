@@ -1,0 +1,114 @@
+<div class="display-contents">
+  <details>
+    <summary>About</summary>
+
+    <p>
+      RCVerse is a tool for all Recursers, in-batch and alum, remote and in-hub.
+    </p>
+
+    <p>
+      We want to connect. We want tools to help connect us. We know how to build
+      them. Let's build them!
+    </p>
+
+    <p>
+      The lofty, long term goal of RCVerse is to be open source, to be a
+      website, to be a canvas for the creativity of RCers, to be a practice
+      ground for creative web development, to be a space for trying out novel
+      collaborative tools.
+    </p>
+
+    <p>
+      The more practical short-term goal for this site is to be the first place
+      RCers look when they sign on in the morning, to see what's going on, both
+      virtually and physically. To do this, we'll have to keep making it more
+      useful over time, and removing any friction which keeps it being as useful
+      as it can be.
+    </p>
+
+    <p>
+      To throw your idea at the project, make a PR to
+      <a href="https://github.com/reedspool/rc-verse"
+        >the source code repository</a
+      >. Or you could slap your thoughts on the shared
+      <a
+        href="https://docs.google.com/document/d/1tLA_BjwM5k93WsMvNKT58kDb4Ksa9S6TFvGMAuK6Ldk/edit#heading=h.8rrvaio0w6r3"
+        >google doc</a
+      >, or message the
+      <a
+        href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace"
+        >Zulip thread</a
+      >, or message Reed Spool (W2'24) directly.
+    </p>
+
+    <p>
+      The site is now open source! Check it out on
+      <a href="https://github.com/reedspool/rc-verse">GitHub</a>.
+    </p>
+  </details>
+  <details>
+    <summary>Usage</summary>
+
+    <p>
+      To view this page without any customizations active, add the query
+      parameter <code>?basic</code> or <a href="/?basic">click here</a>.
+    </p>
+
+    <p>
+      Normally, the rooms on the page are sorted in order of most participants
+      to least. To disable sorting and use a roughly alphebetical, stable room
+      order, add the query parameter <code>?sort=none</code> or
+      <a href="/?sort=none">click here</a>.
+    </p>
+
+    <p>
+      To combine URL parameters, combine them in any order with a
+      <code>&</code> (ampersand) between them, and only one
+      <code>?</code> (question mark) at the start. E.g.
+      <code>?basic&sort=none</code>
+    </p>
+  </details>
+  <details>
+    <summary>⚠ XSS vulnerability</summary>
+
+    <p>
+      There's a new section named "Custom Code" at the bottom of the page. All
+      room notes are now properly HTML escaped.
+    </p>
+
+    <p>
+      This site has a XSS vulnerability. That means you can inject code which
+      will be run when other people load the page in their browser. Don't know
+      what that means? See if you can figure it out. Google's your friend. Ask
+      other recursers. Poke around.
+    </p>
+
+    <p>
+      You can inject CSS with a <code>style</code> tag or JavaScript with a
+      <code>script</code> tag.
+    </p>
+
+    <p>
+      Please be kind. Do not use blocking JS (like <code>alert</code>) or CSS
+      which makes the page (totally) unreadable. If you're writing a loop, maybe
+      test that out on a test HTML page first so that you don't crash this page
+      for others.
+    </p>
+
+    <p>
+      Currently
+      <a
+        href="https://recurse.zulipchat.com/#narrow/stream/18926-help/topic/Reed's.20Impossible.20Day.3A.20Virtual.20RC.20meets.20MySpace/near/426768844"
+      >
+        custom code is ephemeral</a
+      >. Changes are likely to disappear any time. So if you make a change you
+      like, take a screenshot and post your code in the zulip thread! Later, you
+      or someone else can reapply the change.
+    </p>
+
+    <p>
+      Made something you think should be permanent?
+      <a href="https://github.com/reedspool/rc-verse">Make a PR!</a>
+    </p>
+  </details>
+</div>
