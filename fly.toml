@@ -20,3 +20,16 @@ primary_region = 'ewr'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+# We reached error when everyone joined during a presentation:
+#
+#     Instance 6e82403da07628 reached hard limit of 25 concurrent connections.
+#     This usually indicates your app is not closing connections properly or is
+#     not closing them fast enough for the traffic levels it is handling. Scaling
+#     resources, number of instances or increasing your hard limit might help.
+#
+# https://fly.io/docs/reference/load-balancing/#web-service
+[services.concurrency]
+  type = "connections"
+  hard_limit = 200
+  soft_limit = 100
