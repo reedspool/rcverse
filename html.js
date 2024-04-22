@@ -68,6 +68,7 @@ export const RootBody = ({
   otherCustomizations,
   noCustomizations,
   whoIsInTheHub,
+  myRcUserId,
 }) => {
   // NOTE: This chunk is copied from the source of https://www.recurse.com/calendar
   //       Ostensibly that doesn't change very often, but you might want to check
@@ -116,22 +117,21 @@ export const RootBody = ({
             <dl class="customization-list">
               ${myCustomization
                 ? Customization(myCustomization)
-                : html`
-                    <div>
-                      <button
-                        hx-get="/editCustomization.html"
-                        hx-swap="outerHTML"
-                        hx-target="closest div"
-                      >
-                        Add your customization
-                      </button>
-                    </div>
-                    <p style="border: 1px solid red; padding: 0.4em;">
-                      <strong>Note</strong> After you hit Update you'll need to
-                      refresh the page, just this first time (and hopefully I'll
-                      fix this bug first)
-                    </p>
-                  `}
+                : CustomizationContainer({
+                    rcUserId: myRcUserId,
+                    isNew: true,
+                    contents: html`
+                      <div>
+                        <button
+                          hx-get="/editCustomization.html"
+                          hx-swap="outerHTML"
+                          hx-target="closest div"
+                        >
+                          Add your customization
+                        </button>
+                      </div>
+                    `,
+                  })}
               ${otherCustomizations.length === 0
                 ? ""
                 : otherCustomizations.map(Customization).join("\n")}
@@ -317,6 +317,15 @@ export const Participant = ({
   />
 `;
 
+export const CustomizationContainer = ({ rcUserId, isNew, contents }) =>
+  html` <div
+    id="customization-update-${String(rcUserId)}"
+    class="display-contents"
+    hx-swap-oob="${isNew ? "afterbegin" : "true"}"
+  >
+    ${contents}
+  </div>`;
+
 export const Customization = ({
   rcUserId,
   rcPersonName,
@@ -325,50 +334,49 @@ export const Customization = ({
   isEmpty,
   isNew,
   isPaused,
-}) => html`
-  <div
-    id="customization-update-${String(rcUserId)}"
-    class="display-contents"
-    hx-swap-oob="${isNew ? "afterbegin" : "true"}"
-  >
-    <div class="customization ${isEmpty ? "customization--non-empty" : ""}">
-      <dt class="customization__header">
-        <span class="customization__title"
-          >${isMine
-            ? html`<strong>My Code (${rcPersonName})</strong>`
-            : html`${rcPersonName}'s Code`}</span
-        >
-      </dt>
-      <dd class="customization__code">
-        <div>
-          ${isPaused
-            ? html`<strong>Paused</strong>`
-            : html`<button
-                class="customization__pause-button"
-                hx-post="/pauseCustomizationConfirmation.html?rcUserId=${rcUserId}"
-                hx-swap="outerHTML"
-              >
-                Pause ${rcPersonName}'s customization
-              </button>`}
-        </div>
-        <div class="display-contents">
-          <pre
-            class="customization__code-preformatted"
-          ><code>${code}</code></pre>
-          ${isMine
-            ? html`<button
-                hx-get="/editCustomization.html"
-                hx-swap="outerHTML"
-                hx-target="closest div"
-              >
-                Edit code
-              </button>`
-            : html``}
-        </div>
-      </dd>
-    </div>
-  </div>
-`;
+}) =>
+  CustomizationContainer({
+    rcUserId,
+    isNew,
+    contents: html`
+      <div class="customization ${isEmpty ? "customization--non-empty" : ""}">
+        <dt class="customization__header">
+          <span class="customization__title"
+            >${isMine
+              ? html`<strong>My Code (${rcPersonName})</strong>`
+              : html`${rcPersonName}'s Code`}</span
+          >
+        </dt>
+        <dd class="customization__code">
+          <div>
+            ${isPaused
+              ? html`<strong>Paused</strong>`
+              : html`<button
+                  class="customization__pause-button"
+                  hx-post="/pauseCustomizationConfirmation.html?rcUserId=${rcUserId}"
+                  hx-swap="outerHTML"
+                >
+                  Pause ${rcPersonName}'s customization
+                </button>`}
+          </div>
+          <div class="display-contents">
+            <pre
+              class="customization__code-preformatted"
+            ><code>${code}</code></pre>
+            ${isMine
+              ? html`<button
+                  hx-get="/editCustomization.html"
+                  hx-swap="outerHTML"
+                  hx-target="closest div"
+                >
+                  Edit code
+                </button>`
+              : html``}
+          </div>
+        </dd>
+      </div>
+    `,
+  });
 
 export const PauseCustomizationConfirmationButton = ({ rcUserId }) => html`
   <button
@@ -385,7 +393,6 @@ export const EditCustomizationCodeForm = ({ code }) => html`
     method="POST"
     action="/customization"
     hx-post="/customization"
-    hx-swap="none"
     class="customization-editor"
   >
     <label class="customization-editor__form-item">

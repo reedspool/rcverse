@@ -1047,6 +1047,7 @@ const mungeRootBody = ({
     otherCustomizations,
     myCustomization,
     noCustomizations,
+    myRcUserId,
   };
 };
 
