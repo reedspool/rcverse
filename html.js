@@ -196,6 +196,10 @@ export const HTMLInclude = ({ url }) => html`
 
 // TODO: Could have an iframe preview of the homepage which htmx triggers to
 //       refresh on every change, but for now can test by refreshing another tab
+// TODO: Make a wiki page and link it here as a repository of nice
+//       personalizations. Probably everything can be on the wiki and can just link to
+//       the personalization page and the wiki page on the home page and get rid of the
+//       other words therein
 export const Personalization = ({ personalizations }) => {
   return html`<main class="personalization">
     <link rel="stylesheet" type="text/css" href="personalizations.css" />
@@ -295,7 +299,7 @@ export const Login = ({ reason } = { reason: "" }) => html`
           happens frequently.
         </p>`
       : ""}
-    <p><a href="/getAuthorizationUrl">Login</a></p>
+    <p><a hx-boost="false" href="/getAuthorizationUrl">Login</a></p>
   </main>
 `;
 

@@ -587,6 +587,29 @@ app.get(
     // `?sort=none` uses the default ordering instead of sort by count
     const sortRooms = sort !== "none";
 
+    // TODO: If any includes are in the URL, then we redirect to a page
+    //       to manage and accept your new URLs with disclaimers and such.
+    //       Then, if the user accepts the disclaimers, we add that include to
+    //       their cookie so they can simply use the page rcverse.recurse.com
+    //       and it will load the exact same things.
+    //       But if we're making a separate page anyways, why not allow all
+    //       management on that page, isntead of starting with this fancy
+    //       and confusing query string thing.
+    //       So let's do that.
+
+    // TODO: Add query parameters js+, css+, etc so that people can share links
+    //       to RCVerse that automatically add the scripts they like. "Share links"
+    // TODO: Also add a button to copy these share links to the customization page.
+    // TODO: Add a Share All button to customization page
+    /**
+     *  <p>
+     *    To include custom snippets via URL, add the query parameter
+     *    <code>?include=&lt;URL&gt;</code>. You can add this query parameter any
+     *    number of times, e.g.
+     *    <code>?include=&lt;URL_1&gt;&include=&lt;URL_2&gt;</code>.
+     *  </p>
+     */
+
     const personalizations = getPersonalizationsFromReqCookies(req);
 
     res.send(
@@ -1323,7 +1346,7 @@ app.use(function (err, req, res, next) {
   console.error("5XX", err, req, next);
   res.status(err?.status || 500);
 
-  res.send("5XX");
+  res.send("500");
 });
 
 app.use(function (req, res) {
