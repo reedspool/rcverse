@@ -87,6 +87,46 @@ export const RootBody = ({
   body += `<main hx-ext="ws" ws-connect="/websocket">`;
   body += html`<h1>RCVerse</h1>`;
   body += snippets["./html/about.snippet.html"];
+  body += `<details>`;
+  body += html`<summary>Personalizations</summary>`;
+
+  body += html`<p>
+    <a href="/personalization">Edit your personalizations here</a>
+  </p>`;
+  body += html`<p>
+    Each personalization is applied and then repeated as escaped HTML in text
+    form so you can see exactly what's going on.
+  </p>`;
+  body += `<ul>`;
+  body += personalizations
+    .map((url) => {
+      const include = url.endsWith(".css")
+        ? CSSInclude({ url })
+        : url.endsWith(".html")
+          ? HTMLInclude({ url })
+          : url.endsWith(".js")
+            ? JSInclude({ url })
+            : "";
+
+      return html`<li>
+        <div>${escapeHtml(include)}</div>
+        <div>${include}</div>
+
+        <details>
+          <summary>Code</summary>
+          <pre class="customization__code-preformatted"><code
+            hx-get="${url}"
+            hx-trigger="load"
+            hx-swap="outerHTML"
+            hx-ext="escape-html"
+            class="display-contents"
+            ></code></pre>
+        </details>
+      </li>`;
+    })
+    .join("\n");
+  body += `</ul>`;
+  body += `</details>`;
   body += html`
     <dl class="room-list">
       ${WhoIsInTheHub(whoIsInTheHub)} ${rooms.map(Room).join("\n")}
@@ -144,43 +184,6 @@ export const RootBody = ({
       </hl></hl
     >
   `;
-  body += html`<h2>Personalizations</h2>`;
-  body += html`<p>
-    <a href="/personalization">Edit your personalizations here</a>
-  </p>`;
-  body += html`<p>
-    Each personalization is applied and then repeated as escaped HTML in text
-    form so you can see exactly what's going on.
-  </p>`;
-  body += `<ul>`;
-  body += personalizations
-    .map((url) => {
-      const include = url.endsWith(".css")
-        ? CSSInclude({ url })
-        : url.endsWith(".html")
-          ? HTMLInclude({ url })
-          : url.endsWith(".js")
-            ? JSInclude({ url })
-            : "";
-
-      return html`<li>
-        <div>${escapeHtml(include)}</div>
-        <div>${include}</div>
-
-        <details>
-          <summary>Code</summary>
-          <pre class="customization__code-preformatted"><code
-            hx-get="${url}"
-            hx-trigger="load"
-            hx-swap="outerHTML"
-            hx-ext="escape-html"
-            class="display-contents"
-            ></code></pre>
-        </details>
-      </li>`;
-    })
-    .join("\n");
-  body += `</ul>`;
 
   body += html`</main>`;
 
