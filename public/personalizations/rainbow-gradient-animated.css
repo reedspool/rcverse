@@ -1,0 +1,31 @@
+html {
+    --opacity: 20%;
+    background: linear-gradient(
+        to bottom,
+        /* red */ hsla(0deg 100% 50% / var(--opacity)),
+        /* orange */ hsla(38.82deg 100% 50% / var(--opacity)),
+        /* yellow */ hsla(60deg 100% 50% / var(--opacity)),
+        /* green */ hsla(120deg 100% 25.1% / var(--opacity)),
+        /* blue */ hsla(240deg 100% 50% / var(--opacity)),
+        /* indigo */ hsla(274.62deg 100% 25.49% / var(--opacity)),
+        /* violet */ hsla(300deg 76.06% 72.16% / var(--opacity)),
+        /* red again */ hsla(0deg 100% 50% / var(--opacity))
+    );
+
+    background-size: 400% 400%;
+    background-position: 50% 0%;
+    animation: gradient 15s ease infinite;
+    height: 100vh;
+}
+
+@keyframes gradient {
+    0% {
+        background-position: 50% 0%;
+    }
+    50% {
+        background-position: 50% 50%;
+    }
+    100% {
+        background-position: 50% 0%;
+    }
+}

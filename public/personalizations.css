@@ -1,0 +1,45 @@
+/* Reset / General */
+
+body {
+  margin: 0;
+}
+
+p {
+  max-width: 60ch;
+}
+
+button {
+  cursor: pointer;
+}
+
+dd {
+  margin-inline-start: 0px;
+}
+
+summary {
+  cursor: pointer;
+}
+
+main {
+  padding-inline: 1rem;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: normal;
+}
+
+/* BEM - See https://getbem.com/introduction/ */
+main.personalization {
+  max-width: 100ch;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+}
+
+@media only screen and (max-width: 800px) {

@@ -24,6 +24,7 @@ import {
   WhoIsInTheHub,
   CheckIntoHubForm,
   Login,
+  Personalization,
   escapeHtml,
 } from "./html.js";
 import expressWebsockets from "express-ws";
@@ -563,7 +564,7 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
   scheduleNeedToUpdateWhosAtTheHub();
   return next();
 };
-
+const personalizationsCookieName = "rcverse-personalizations";
 // TODO I don't know where to write this
 // Client could lose Websocket connection for a long time, like if they close their laptop
 // HTMX is going to try to reconnect immediately, but it doesn't do anything
@@ -586,10 +587,9 @@ app.get(
     // `?sort=none` uses the default ordering instead of sort by count
     const sortRooms = sort !== "none";
 
+    const personalizations = getPersonalizationsFromReqCookies(req);
+
     res.send(
-      // TODO: Cache an authenticated version and an unauthenticated version
-      //       and only invalidate that cache when a zoom room update occurs
-      // ACTUALLY we can cache each room too! And only invalidate them when a room change occurs
       Page({
         title: "RCVerse",
         body: RootBody(
@@ -605,6 +605,7 @@ app.get(
             inTheHubParticipantNames,
             sortRooms,
             locationToNowAndNextEvents,
+            personalizations,
           }),
         ),
         mixpanelToken,
@@ -963,6 +964,80 @@ app.get(
   },
 );
 
+app.get(
+  "/personalization",
+  isSessionAuthenticatedMiddleware,
+  hxBlockIfNotAuthenticated,
+  function (req, res) {
+    const personalizations = getPersonalizationsFromReqCookies(req);
+
+    res.send(
+      Page({
+        title: "RCVerse Personalizations",
+        body: Personalization(mungePersonalization({ personalizations })),
+        mixpanelToken,
+        myRcUserId: req.locals.rcUserId,
+      }),
+    );
+  },
+);
+
+app.post(
+  "/personalization",
+  isSessionAuthenticatedMiddleware,
+  hxBlockIfNotAuthenticated,
+  function (req, res) {
+    const { addUrl, removeUrl, moveItemUp, moveItemDown, reset, reallyReset } =
+      req.body;
+    let personalizations = getPersonalizationsFromReqCookies(req);
+
+    if (reset && reallyReset === "confirm") {
+      personalizations = DEFAULT_PERSONALIZATIONS;
+    }
+
+    if (addUrl) {
+      personalizations.push(addUrl);
+    }
+
+    if (removeUrl) {
+      personalizations = personalizations.filter(
+        (currentUrl) => currentUrl !== removeUrl,
+      );
+    }
+
+    if (moveItemUp) {
+      const index = parseInt(moveItemUp);
+      const tmp = personalizations[index - 1];
+      personalizations[index - 1] = personalizations[index];
+      personalizations[index] = tmp;
+    }
+
+    if (moveItemDown) {
+      const index = parseInt(moveItemDown);
+      const tmp = personalizations[index + 1];
+      personalizations[index + 1] = personalizations[index];
+      personalizations[index] = tmp;
+    }
+
+    res.appendHeader(
+      "Set-Cookie",
+      new Cookie(
+        personalizationsCookieName,
+        JSON.stringify(personalizations),
+      ).serialize(),
+    );
+
+    res.send(
+      Page({
+        title: "RCVerse Personalizations",
+        body: Personalization(mungePersonalization({ personalizations })),
+        mixpanelToken,
+        myRcUserId: req.locals.rcUserId,
+      }),
+    );
+  },
+);
+
 // Data mungers take the craziness of the internal data structures
 // and make them peaceful and clean for the HTML generator
 const mungeRootBody = ({
@@ -977,6 +1052,7 @@ const mungeRootBody = ({
   inTheHubParticipantNames,
   sortRooms,
   locationToNowAndNextEvents,
+  personalizations,
 }) => {
   const whoIsInTheHub = mungeWhoIsInTheHub({
     inTheHubParticipantNames,
@@ -1048,6 +1124,7 @@ const mungeRootBody = ({
     myCustomization,
     noCustomizations,
     myRcUserId,
+    personalizations,
   };
 };
 
@@ -1118,6 +1195,10 @@ const mungeRoom = ({
       locationToNowAndNextEvents[roomLocation]?.next?.[0]?.url,
   };
 };
+
+const mungePersonalization = ({ personalizations }) => ({
+  personalizations,
+});
 
 const mungeParticipants = ({ participantNames, participantNameToEntity }) => {
   return (
@@ -1332,4 +1413,23 @@ const howLongInTheFuture = (date) => {
 
 const countPhrase = (count) => {
   return count === 0 ? "" : count === 1 ? "1 person" : `${count} people`;
+};
+
+const DEFAULT_PERSONALIZATIONS = [
+  "/personalizations/rcverse-base-style.css",
+  "/personalizations/rainbow-gradient-animated.css",
+  "/personalizations/rainbowify-participant-borders.js",
+  "/personalizations/confetti-once.html",
+];
+const getPersonalizationsFromReqCookies = (req) => {
+  let parsed = DEFAULT_PERSONALIZATIONS;
+  try {
+    const cookies = parseCookies(req.headers.cookie);
+    const personalizationsCookie = cookies.get(personalizationsCookieName);
+    parsed = JSON.parse(personalizationsCookie);
+  } catch (error) {
+    /* Do nothing - it's either an array set intentionally or we'll reset it */
+  }
+  if (!Array.isArray(parsed)) parsed = DEFAULT_PERSONALIZATIONS;
+  return parsed;
 };

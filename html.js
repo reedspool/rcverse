@@ -12,6 +12,7 @@ const snippets = {};
   "./html/mixpanel.snippet.html",
   "./html/recurse-com-header.snippet.html",
   "./html/about.snippet.html",
+  "./html/escape-html-htmx-extension.snippet.html",
 ].forEach((path) => (snippets[path] = readFileSync(path)));
 
 // Generic complete HTML page
@@ -23,7 +24,6 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <link rel="shortcut icon" type="image/png" href="favicon.ico" />
-      <link rel="stylesheet" type="text/css" href="site.css" />
       <link rel="stylesheet" type="text/css" href="recurse-com.css" />
       ${
         ""
@@ -55,6 +55,7 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
         integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
         crossorigin="anonymous"
       ></script>
+      ${snippets["./html/escape-html-htmx-extension.snippet.html"]}
       <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
 
       ${body}
@@ -69,6 +70,7 @@ export const RootBody = ({
   noCustomizations,
   whoIsInTheHub,
   myRcUserId,
+  personalizations,
 }) => {
   // NOTE: This chunk is copied from the source of https://www.recurse.com/calendar
   //       Ostensibly that doesn't change very often, but you might want to check
@@ -142,11 +144,146 @@ export const RootBody = ({
       </hl></hl
     >
   `;
+  body += html`<h2>Personalizations</h2>`;
+  body += html`<p>
+    <a href="/personalization">Edit your personalizations here</a>
+  </p>`;
+  body += html`<p>
+    Each personalization is applied and then repeated as escaped HTML in text
+    form so you can see exactly what's going on.
+  </p>`;
+  body += `<ul>`;
+  body += personalizations
+    .map((url) => {
+      const include = url.endsWith(".css")
+        ? CSSInclude({ url })
+        : url.endsWith(".html")
+          ? HTMLInclude({ url })
+          : url.endsWith(".js")
+            ? JSInclude({ url })
+            : "";
+
+      return html`<li>
+        <div>${escapeHtml(include)}</div>
+        <div>${include}</div>
+
+        <details>
+          <summary>Code</summary>
+          <pre class="customization__code-preformatted"><code
+            hx-get="${url}"
+            hx-trigger="load"
+            hx-swap="outerHTML"
+            hx-ext="escape-html"
+            class="display-contents"
+            ></code></pre>
+        </details>
+      </li>`;
+    })
+    .join("\n");
+  body += `</ul>`;
+
   body += html`</main>`;
 
   return body;
 };
 
+export const JSInclude = ({ url }) => html` <script src="${url}"></script>`;
+export const CSSInclude = ({ url }) =>
+  html` <link rel="stylesheet" type="text/css" href="${url}" />`;
+export const HTMLInclude = ({ url }) => html`
+  <div hx-get="${url}" hx-trigger="load" class="display-contents"></div>
+`;
+
+// TODO: Could have an iframe preview of the homepage which htmx triggers to
+//       refresh on every change, but for now can test by refreshing another tab
+export const Personalization = ({ personalizations }) => {
+  return html`<main class="personalization">
+    <link rel="stylesheet" type="text/css" href="personalizations.css" />
+    <h1>RCVerse Personaliztions</h1>
+
+    <p>
+      Your personalizations are listed below. Personalizations aren't applied on
+      this page so hopefully this page doesn't break. To test your changes, I
+      recommend opening the
+      <a href="/" target="_blank">homepage in another tab</a> and refreshing it
+      after each change.
+    </p>
+
+    <a href="/">Back to RCVerse Home</a>
+
+    <ol>
+      ${personalizations
+        .map((url, index) =>
+          PersonalizationListItem({
+            url,
+            index,
+            total: personalizations.length,
+          }),
+        )
+        .join("\n")}
+    </ol>
+
+    <h2>Add personalization</h2>
+
+    <p>
+      Each URL will be interpreted by its file extension, and included on the
+      page at load time. So, to include an HTML snippet, the URL must end with
+      <code>.html</code>. To include JavaScript via a <code>script</code> tag,
+      the URL must end with <code>.js</code>. To include CSS via a
+      <code>link</code> tag, the URL must end with <code>.css</code>. I admit
+      these rules are a little silly and subject to change after further
+      testing.
+    </p>
+
+    <form method="POST" action="/personalization">
+      <label>
+        URL
+        <input name="addUrl" value="" placeholder="https://..." />
+      </label>
+      <button type="submit">Add</button>
+
+      <p>
+        Security note: Make sure you trust this URL. Check out the contents
+        yourself and ensure you believe it won't change.
+      </p>
+    </form>
+
+    <h3>Reset</h3>
+
+    <p>
+      This will reset your personalizations to the current defaults. To confirm,
+      please type "confirm" in the text box.
+    </p>
+    <form method="POST" action="/personalization">
+      <input type="hidden" name="reset" value="true" />
+      <input type="text" name="reallyReset" value="" placeholder="Really?" />
+      <button type="submit">Reset all my personalizations</button>
+    </form>
+  </main> `;
+};
+export const PersonalizationListItem = ({ url, index, total }) => {
+  const isFirst = index === 0;
+  const isLast = index === total - 1;
+  return html`<li>
+    ${url} - <a target="_blank" href="${url}">Visit</a>
+    <form method="POST" action="/personalization">
+      <input type="hidden" name="removeUrl" value="${url}" />
+      <button type="submit">Remove</button>
+    </form>
+    ${isFirst
+      ? ""
+      : html`<form method="POST" action="/personalization">
+          <input type="hidden" name="moveItemUp" value="${index}" />
+          <button type="submit">Move up</button>
+        </form>`}
+    ${isLast
+      ? ""
+      : html`<form method="POST" action="/personalization">
+          <input type="hidden" name="moveItemDown" value="${index}" />
+          <button type="submit">Move down</button>
+        </form>`}
+  </li>`;
+};
 export const Login = ({ reason } = { reason: "" }) => html`
   <main>
     <h1>RCVerse</h1>
