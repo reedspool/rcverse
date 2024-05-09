@@ -249,7 +249,7 @@ emitter.on("participant-room-data", async (entity) => {
   }
 
   if (hubStatusVerb) {
-    console.log(`${participantName} ${hubStatusVerb} the hub`);
+    // console.log(`${participantName} ${hubStatusVerb} the hub`);
     participantNameToEntity[participantName] = {
       ...participantNameToEntity[participantName],
       inTheHub,
@@ -304,7 +304,7 @@ emitter.on("participant-room-data", async (entity) => {
     roomName = previousRoomName;
   }
 
-  console.log(`${participantName} ${verb} ${roomName}`);
+  // console.log(`${participantName} ${verb} ${roomName}`);
   emitter.emit("room-change", participantName, verb, roomName);
 });
 
