@@ -29,7 +29,11 @@ primary_region = 'ewr'
 #     resources, number of instances or increasing your hard limit might help.
 #
 # https://fly.io/docs/reference/load-balancing/#web-service
-[services.concurrency]
-  type = "connections"
+#
+# Also note: It appears that since I have a [http_service] section, [services] is
+#            ignored? Originally tried these exact settings in
+#            [connections.concurrency]
+[http_service.concurrency]
+  type = "requests"
   hard_limit = 200
   soft_limit = 100
