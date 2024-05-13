@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node --env-file=config.env index.js",
     "start:debug": "node --env-file=config.env --inspect index.js",
+    "start:debug-brk": "node --env-file=config.env --inspect-brk index.js",
     "generate-cert": "sh ./scripts/generate-cert.sh"
   },
   "type": "module",
