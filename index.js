@@ -466,7 +466,7 @@ const getRcUserMiddleware = async (req, res, next) => {
 };
 
 const redirectToLoginIfNotAuthenticated = async (req, res, next) => {
-  if (req.locals?.authenticated && req.locals.access_token) return next();
+  if (req.locals?.authenticated) return next();
 
   res.redirect("/login");
 };
