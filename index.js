@@ -1438,6 +1438,7 @@ const DEFAULT_PERSONALIZATIONS = [
   "/personalizations/rainbow-gradient-animated.css",
   "/personalizations/rainbowify-participant-borders.js",
   "/personalizations/confetti-once.html",
+  "/personalizations/register-service-worker.js",
 ];
 const getPersonalizationsFromReqCookies = (req) => {
   let parsed;
