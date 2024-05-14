@@ -997,7 +997,12 @@ app.get(
     res.send(
       Page({
         title: "RCVerse Personalizations",
-        body: Personalization(mungePersonalization({ personalizations })),
+        body: Personalization(
+          mungePersonalization({
+            personalizations,
+            defaultPersonalizations: DEFAULT_PERSONALIZATIONS,
+          }),
+        ),
         mixpanelToken,
         myRcUserId: req.locals.rcUserId,
       }),
@@ -1214,8 +1219,12 @@ const mungeRoom = ({
   };
 };
 
-const mungePersonalization = ({ personalizations }) => ({
+const mungePersonalization = ({
   personalizations,
+  defaultPersonalizations,
+}) => ({
+  personalizations,
+  defaultPersonalizations,
 });
 
 const mungeParticipants = ({ participantNames, participantNameToEntity }) => {

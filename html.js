@@ -203,7 +203,10 @@ export const HTMLInclude = ({ url }) => html`
 //       personalizations. Probably everything can be on the wiki and can just link to
 //       the personalization page and the wiki page on the home page and get rid of the
 //       other words therein
-export const Personalization = ({ personalizations }) => {
+export const Personalization = ({
+  personalizations,
+  defaultPersonalizations,
+}) => {
   return html`<main class="personalization">
     <link rel="stylesheet" type="text/css" href="personalizations.css" />
     <h1>RCVerse Personaliztions</h1>
@@ -258,8 +261,18 @@ export const Personalization = ({ personalizations }) => {
     <h3>Reset</h3>
 
     <p>
-      This will reset your personalizations to the current defaults. To confirm,
-      please type "confirm" in the text box.
+      This will reset your personalizations to the current defaults. The current
+      defaults are listed below so you could manually add what you're missing
+      yourself instead of wiping everything out.
+    </p>
+
+    <ol>
+      ${defaultPersonalizations.map((url) => html`<li>${url}</li>`).join("\n")}
+    </ol>
+
+    <p>
+      To confirm and reset your personalizations, please type "confirm" in the
+      text box. Then hit the button.
     </p>
     <form method="POST" action="/personalization">
       <input type="hidden" name="reset" value="true" />
