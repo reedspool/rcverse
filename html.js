@@ -190,9 +190,9 @@ export const RootBody = ({
   return body;
 };
 
-export const JSInclude = ({ url }) => html` <script src="${url}"></script>`;
+export const JSInclude = ({ url }) => html`<script src="${url}"></script>`;
 export const CSSInclude = ({ url }) =>
-  html` <link rel="stylesheet" type="text/css" href="${url}" />`;
+  html`<link rel="stylesheet" type="text/css" href="${url}" />`;
 export const HTMLInclude = ({ url }) => html`
   <div hx-get="${url}" hx-trigger="load" class="display-contents"></div>
 `;

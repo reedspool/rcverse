@@ -1015,16 +1015,16 @@ app.post(
     let personalizations = getPersonalizationsFromReqCookies(req);
 
     if (reset && reallyReset === "confirm") {
-      personalizations = DEFAULT_PERSONALIZATIONS;
+      personalizations = [...DEFAULT_PERSONALIZATIONS];
     }
 
     if (addUrl) {
-      personalizations.push(addUrl);
+      personalizations.push(addUrl.trim());
     }
 
     if (removeUrl) {
       personalizations = personalizations.filter(
-        (currentUrl) => currentUrl !== removeUrl,
+        (currentUrl) => currentUrl !== removeUrl.trim(),
       );
     }
 
@@ -1050,14 +1050,9 @@ app.post(
       ).serialize(),
     );
 
-    res.send(
-      Page({
-        title: "RCVerse Personalizations",
-        body: Personalization(mungePersonalization({ personalizations })),
-        mixpanelToken,
-        myRcUserId: req.locals.rcUserId,
-      }),
-    );
+    // Redirect instead of rendering the page again, Post-Redirect-Get
+    // See https://en.wikipedia.org/wiki/Post/Redirect/Get
+    res.redirect("/personalization");
   },
 );
 
@@ -1445,7 +1440,7 @@ const DEFAULT_PERSONALIZATIONS = [
   "/personalizations/confetti-once.html",
 ];
 const getPersonalizationsFromReqCookies = (req) => {
-  let parsed = DEFAULT_PERSONALIZATIONS;
+  let parsed;
   try {
     const cookies = parseCookies(req.headers.cookie);
     const personalizationsCookie = cookies.get(personalizationsCookieName);
@@ -1453,6 +1448,6 @@ const getPersonalizationsFromReqCookies = (req) => {
   } catch (error) {
     /* Do nothing - it's either an array set intentionally or we'll reset it */
   }
-  if (!Array.isArray(parsed)) parsed = DEFAULT_PERSONALIZATIONS;
+  if (!Array.isArray(parsed)) parsed = [...DEFAULT_PERSONALIZATIONS];
   return parsed;
 };
