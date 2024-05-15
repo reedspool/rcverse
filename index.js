@@ -729,12 +729,16 @@ app.post(
   hxBlockIfNotAuthenticated,
   function (req, res) {
     const { room, content } = req.body;
-    roomNameToNote[room] = {
-      content: escapeHtml(content) ?? "",
-      date: new Date(),
-    };
+    if (!content) {
+      delete roomNameToNote[room];
+    } else {
+      roomNameToNote[room] = {
+        content: escapeHtml(content) ?? "",
+        date: new Date(),
+      };
+    }
 
-    console.log(`Room '${room}' note changed to ${content} (pre-escape)`);
+    // console.log(`Room '${room}' note changed to ${content} (pre-escape)`);
 
     emitter.emit("room-change", "someone", "updated the note for", room);
 
