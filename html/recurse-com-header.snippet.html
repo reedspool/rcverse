@@ -984,9 +984,9 @@
     <button
       class="site-header__mobile-toggle button button--link color-dark-gray font-size-large"
       style="margin-right: 1rem"
-      onclick="document.querySelector('.site-header__menu-items').classList.toggle('site-header__menu-items--show-on-mobile')"
+      onclick="document.querySelector('.site-header__menu-items').classList.toggle('site-header__menu-items--show-on-mobile');{ this.querySelector('i').classList.toggle('fa-bars');this.querySelector('i').classList.toggle('fa-times') }"
     >
-      Menu
+      <i class="fa fa-bars"></i>
     </button>
   </div>
 </div>

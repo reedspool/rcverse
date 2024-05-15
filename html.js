@@ -8,12 +8,15 @@ import { readFileSync } from "node:fs";
 const html = (...args) => String.raw(...args);
 
 const snippets = {};
-[
-  "./html/mixpanel.snippet.html",
-  "./html/recurse-com-header.snippet.html",
-  "./html/about.snippet.html",
-  "./html/escape-html-htmx-extension.snippet.html",
-].forEach((path) => (snippets[path] = readFileSync(path)));
+
+const useSnippet = (path) => {
+  let content = snippets[path];
+  if (!content) {
+    content = readFileSync(path);
+    snippets[path] = content;
+  }
+  return content;
+};
 
 // Generic complete HTML page
 export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
@@ -30,7 +33,7 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
         /* Mixpanel insert from https://docs.mixpanel.com/docs/quickstart/connect-your-data?sdk=javascript */
         /* NOTE: Had to double escape forward slashes, i.e. replace "\/" with "\\/" */
       }
-      ${snippets["./html/mixpanel.snippet.html"]}
+      ${useSnippet("./html/mixpanel.snippet.html")}
       <script type="module">
         // import mixpanel from 'mixpanel-browser'; // This is a global from mixpanel script snippet
         mixpanel.init("${mixpanelToken}", {
@@ -55,7 +58,7 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
         integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
         crossorigin="anonymous"
       ></script>
-      ${snippets["./html/escape-html-htmx-extension.snippet.html"]}
+      ${useSnippet("./html/escape-html-htmx-extension.snippet.html")}
       <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
 
       ${body}
@@ -83,10 +86,14 @@ export const RootBody = ({
   //       a separate HTML file, then include it here verbatim and
   //       then filter and edit the content in JavaScript instead of
   //       manually. It will make future updates much simpler.
-  let body = snippets["./html/recurse-com-header.snippet.html"];
+  let body = "";
+  body += useSnippet("./html/font-awesome.snippet.html");
+  // TODO Clean up - entire recurse-com header can be a self-contained personalization
+  body += useSnippet("./html/recurse-com-other-css.snippet.html");
+  body += useSnippet("./html/recurse-com-header.snippet.html");
   body += `<main hx-ext="ws" ws-connect="/websocket">`;
   body += html`<h1>RCVerse</h1>`;
-  body += snippets["./html/about.snippet.html"];
+  body += useSnippet("./html/about.snippet.html");
   body += `<details>`;
   body += html`<summary>Personalizations</summary>`;
 
