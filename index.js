@@ -1448,15 +1448,9 @@ const countPhrase = (count) => {
 
 const DEFAULT_PERSONALIZATIONS = [
   "/personalizations/rcverse-base-style.css",
-  "/personalizations/confetti-once.html",
   "/personalizations/register-service-worker.js",
-];
-
-// TODO List these somewhere on the about page?
-const OTHER_PERSONALIZATIONS = [
-  // Removed from defaults because too much visual stimulus for some!
-  "/personalizations/rainbow-gradient-animated.css",
-  "/personalizations/rainbowify-participant-borders.js",
+  "/personalizations/confetti-once.html",
+  "/personalizations/hannahs-colorful-rooms.css",
 ];
 
 const getPersonalizationsFromReqCookies = (req) => {
