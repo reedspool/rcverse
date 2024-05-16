@@ -1255,6 +1255,7 @@ const mungeWhoIsInTheHub = ({
       participantNameToEntity,
     }),
     iAmCheckedIn: participantNameToEntity[myParticipantName]?.inTheHub,
+    countPhrase: countPhrase(inTheHubParticipantNames.length || 0),
   };
 };
 

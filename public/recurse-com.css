@@ -64,7 +64,6 @@
 
 .site-header--fixed .site-header__content {
   position: fixed;
-  width: 100%;
   z-index: 9001;
 }
 

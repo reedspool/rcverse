@@ -11,7 +11,10 @@ function extractCookieByName(cookie, name) {
   return null;
 }
 
-const RCVERSE_SERVICE_WORKER_CACHE_NAME = "rcverse-service-worker-cache-v5";
+// To refresh user's caches automatically, change the number in this name.
+// That will cause `deleteOldCaches` to clean up the past one. So users might
+// still need to refresh after that switch happens?
+const RCVERSE_SERVICE_WORKER_CACHE_NAME = "rcverse-service-worker-cache-v6";
 // Adapted from an MDN example
 const deleteOldCaches = async () => {
   const cacheKeepList = [RCVERSE_SERVICE_WORKER_CACHE_NAME];

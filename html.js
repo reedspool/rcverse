@@ -356,30 +356,33 @@ export const Room = ({
   nextEventCalendarUrl,
   nextEventDateTime,
 }) => html`
-  <div
+  <section
     id="room-update-${roomName.replaceAll(" ", "-")}"
     class="display-contents"
   >
     <div class="room ${isEmpty ? "room--non-empty" : ""}">
       <dt class="room__header">
         <span class="room__header-title">
-          <span class="room__title">${roomName}</span>
+          <h2 class="room__title">${roomName}</h2>
+        </span>
+      </dt>
+      <dd class="room__details">
+        ${Participants({ participants, countPhrase })}
+
+        <p>
           <a
             class="room__join"
             href="${roomLocation}"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Join
+            Join ${roomName}
           </a>
-        </span>
-        <span class="room__count">${countPhrase}</span>
-      </dt>
-      <dd class="room__details">
-        ${Participants({ participants })}
+        </p>
+
         ${hasNowEvent
           ? html`
-              <div class="room__event-now">
+              <p class="room__event-now">
                 <a href="${nowEventCalendarUrl}" target="_blank"
                   >${nowEventName}</a
                 >
@@ -390,12 +393,12 @@ export const Room = ({
                 >
                   ${nowEventStartedHowManyMinutesAgo}
                 </time>
-              </div>
+              </p>
             `
           : ""}
         ${hasNextEvent
           ? html`
-              <div class="room__event-next">
+              <p class="room__event-next">
                 <a href="${nextEventCalendarUrl}" target="_blank"
                   >${nextEventName}</a
                 >
@@ -406,7 +409,7 @@ export const Room = ({
                 >
                   ${nextEventStartsInHowLong}
                 </time>
-              </div>
+              </p>
             `
           : ""}
         ${Note({
@@ -418,7 +421,7 @@ export const Room = ({
         })}
       </dd>
     </div>
-  </div>
+  </section>
 `;
 
 export const Note = ({
@@ -458,9 +461,10 @@ export const EditNoteForm = ({ roomName, noteContent }) => html`
     class="note-editor"
   >
     <input type="hidden" name="room" value="${roomName}" />
-    <label class="note-editor__form-item">
-      Note
+    <fieldset>
+      <legend>Note</legend>
       <textarea
+        id="note-editor__text-input-${roomName}"
         name="content"
         class="note-editor__text-input"
         cols="33"
@@ -468,14 +472,19 @@ export const EditNoteForm = ({ roomName, noteContent }) => html`
       >
 ${noteContent}</textarea
       >
-    </label>
-    <button type="submit">Update note</button>
+      <div>
+        <button type="submit">Update note</button>
+      </div>
+    </fieldset>
   </form>
 `;
 
-export const Participants = ({ participants }) =>
+export const Participants = ({ participants, countPhrase }) =>
   html`<div class="participants">
-    ${participants.map((p) => Participant(p)).join("")}
+    <span class="participants__faces"
+      >${participants.map((p) => Participant(p)).join("")}</span
+    >
+    ${countPhrase ? html`<span class="room__count">${countPhrase}</span>` : ""}
   </div>`;
 
 export const Participant = ({
@@ -484,7 +493,7 @@ export const Participant = ({
   lastBatch,
 }) => html`
   <img
-    class="participants__participant"
+    class="participants__face"
     src=${faceMarkerImagePath}
     title="${participantName} ${lastBatch}"
     style="width: 2em;"
@@ -584,25 +593,33 @@ ${code}</textarea
   </form>
 `;
 
-export const WhoIsInTheHub = ({ isEmpty, participants, iAmCheckedIn }) => html`
-  <div id="in-the-hub-update" class="display-contents">
+export const WhoIsInTheHub = ({
+  isEmpty,
+  participants,
+  iAmCheckedIn,
+  countPhrase,
+}) => html`
+  <section id="in-the-hub-update" class="display-contents">
     <div class="room ${isEmpty ? "room--non-empty" : ""}">
       <dt class="room__header">
-        <span class="room__title">Who is in the hub?</span>
-
-        ${iAmCheckedIn
-          ? "(you are!)"
-          : html`<button
-              class="room__title-button"
-              hx-post="/checkIntoHub"
-              hx-swap="none"
-            >
-              Check in
-            </button>`}
+        <h2 class="room__title">Who is in the hub?</h2>
       </dt>
-      <dd class="room__details">${Participants({ participants })}</dd>
+      <dd class="room__details">
+        ${Participants({ participants, countPhrase })}
+        <p>
+          ${iAmCheckedIn
+            ? "You are checked in"
+            : html`<button
+                class="room__title-button"
+                hx-post="/checkIntoHub"
+                hx-swap="none"
+              >
+                Check in
+              </button>`}
+        </p>
+      </dd>
     </div>
-  </div>
+  </section>
 `;
 
 export const CheckIntoHubForm = () => html`

@@ -9,7 +9,7 @@
     "violet",
   ];
   const customize = () => {
-    document.querySelectorAll(".participants__participant").forEach((p) => {
+    document.querySelectorAll(".participants__face").forEach((p) => {
       p.style.borderColor = colors[(Math.random() * colors.length) | 0];
     });
   };

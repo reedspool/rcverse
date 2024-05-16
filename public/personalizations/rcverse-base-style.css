@@ -6,6 +6,7 @@ body {
 
 p {
   max-width: 60ch;
+  margin: 0;
 }
 
 button {
@@ -31,26 +32,35 @@ h4,
 h5,
 h6 {
   font-weight: normal;
+  margin: 0;
 }
 
 /* BEM - See https://getbem.com/introduction/ */
 
 .participants {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4em;
+  width: 100%;
+}
+
+.participants__faces {
+  display: inline-flex;
   flex-direction: row-reverse;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
 }
 
-.participants__participant {
+.participants__face {
   position: relative;
   aspect-ratio: 1;
   border-radius: 99999px;
   border: 4px solid forestgreen;
 }
 
-.participants__participant:not(:first-child) {
+.participants__face:not(:first-child) {
   margin-right: -0.8em;
 }
 
@@ -130,6 +140,7 @@ h6 {
 .room__count {
   font-size: 0.8em;
   color: darkgray;
+  white-space: nowrap;
 }
 
 .room__details {
