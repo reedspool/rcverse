@@ -68,9 +68,6 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
 
 export const RootBody = ({
   rooms,
-  myCustomization,
-  otherCustomizations,
-  noCustomizations,
   whoIsInTheHub,
   myRcUserId,
   personalizations,
@@ -121,7 +118,7 @@ export const RootBody = ({
 
         <details>
           <summary>Code</summary>
-          <pre class="customization__code-preformatted"><code
+          <pre class="personalization__code-preformatted"><code
             hx-get="${url}"
             hx-trigger="load"
             hx-swap="outerHTML"
@@ -139,57 +136,8 @@ export const RootBody = ({
       ${WhoIsInTheHub(whoIsInTheHub)} ${rooms.map(Room).join("\n")}
     </dl>
 
-    <hl>
-      <h2>Custom HTML</h2>
-
-      ${noCustomizations
-        ? html`<p>
-            Customizations disabled because of <code>?basic</code> query
-            parameter
-          </p>`
-        : html`
-            <p>
-              Only you can edit your customization. Your code will immediately
-              run for everyone, so <strong>be nice</strong>.
-            </p>
-
-            <p>
-              Anyone can <strong>Pause</strong> anyone's customization.
-              Customizations will be unpaused when they're updated.
-            </p>
-
-            <p>
-              To view this page without any customizations active, add the query
-              parameter <code>?basic</code> or <a href="/?basic">click here</a>.
-            </p>
-
-            <dl class="customization-list">
-              ${myCustomization
-                ? Customization(myCustomization)
-                : CustomizationContainer({
-                    rcUserId: myRcUserId,
-                    isNew: true,
-                    contents: html`
-                      <div>
-                        <button
-                          hx-get="/editCustomization.html"
-                          hx-swap="outerHTML"
-                          hx-target="closest div"
-                        >
-                          Add your customization
-                        </button>
-                      </div>
-                    `,
-                  })}
-              ${otherCustomizations.length === 0
-                ? ""
-                : otherCustomizations.map(Customization).join("\n")}
-            </dl>
-          `}
-      <hl>
-        <p>You're logged in! - <a href="/logout">logout</a></p>
-      </hl></hl
-    >
+    <hl />
+    <p>You're logged in! - <a href="/logout">logout</a></p>
   `;
 
   body += html`</main>`;
@@ -500,99 +448,6 @@ export const Participant = ({
   />
 `;
 
-export const CustomizationContainer = ({ rcUserId, isNew, contents }) =>
-  html` <div
-    id="customization-update-${String(rcUserId)}"
-    class="display-contents"
-    hx-swap-oob="${isNew ? "afterbegin" : "true"}"
-  >
-    ${contents}
-  </div>`;
-
-export const Customization = ({
-  rcUserId,
-  rcPersonName,
-  code,
-  isMine,
-  isEmpty,
-  isNew,
-  isPaused,
-}) =>
-  CustomizationContainer({
-    rcUserId,
-    isNew,
-    contents: html`
-      <div class="customization ${isEmpty ? "customization--non-empty" : ""}">
-        <dt class="customization__header">
-          <span class="customization__title"
-            >${isMine
-              ? html`<strong>My Code (${rcPersonName})</strong>`
-              : html`${rcPersonName}'s Code`}</span
-          >
-        </dt>
-        <dd class="customization__code">
-          <div>
-            ${isPaused
-              ? html`<strong>Paused</strong>`
-              : html`<button
-                  class="customization__pause-button"
-                  hx-post="/pauseCustomizationConfirmation.html?rcUserId=${rcUserId}"
-                  hx-swap="outerHTML"
-                >
-                  Pause ${rcPersonName}'s customization
-                </button>`}
-          </div>
-          <div class="display-contents">
-            <pre
-              class="customization__code-preformatted"
-            ><code>${code}</code></pre>
-            ${isMine
-              ? html`<button
-                  hx-get="/editCustomization.html"
-                  hx-swap="outerHTML"
-                  hx-target="closest div"
-                >
-                  Edit code
-                </button>`
-              : html``}
-          </div>
-        </dd>
-      </div>
-    `,
-  });
-
-export const PauseCustomizationConfirmationButton = ({ rcUserId }) => html`
-  <button
-    class="customization__pause-button customization__pause-button--confirmation"
-    hx-post="/pauseCustomization?rcUserId=${rcUserId}"
-    hx-swap="none"
-  >
-    <em>Really</em> pause it for <strong>everyone</strong>!?
-  </button>
-`;
-
-export const EditCustomizationCodeForm = ({ code }) => html`
-  <form
-    method="POST"
-    action="/customization"
-    hx-post="/customization"
-    class="customization-editor"
-  >
-    <label class="customization-editor__form-item">
-      Code
-      <textarea
-        name="code"
-        class="customization-editor__text-input"
-        cols="60"
-        rows="20"
-      >
-${code}</textarea
-      >
-    </label>
-    <button type="submit">Update</button>
-  </form>
-`;
-
 export const WhoIsInTheHub = ({
   isEmpty,
   participants,
@@ -620,27 +475,6 @@ export const WhoIsInTheHub = ({
       </dd>
     </div>
   </section>
-`;
-
-export const CheckIntoHubForm = () => html`
-  <form
-    method="POST"
-    action="/checkIntoHub"
-    hx-post="/checkIntoHub"
-    hx-swap="none"
-    class="customization-editor"
-  >
-    <label class="customization-editor__form-item">
-      Note
-      <textarea
-        name="code"
-        class="customization-editor__text-input"
-        cols="60"
-        rows="20"
-      ></textarea>
-    </label>
-    <button type="submit">Check in</button>
-  </form>
 `;
 
 // Stolen from NakedJSX https://github.com/NakedJSX/core

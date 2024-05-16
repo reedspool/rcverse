@@ -18,11 +18,7 @@ import {
   RootBody,
   Room,
   EditNoteForm,
-  EditCustomizationCodeForm,
-  Customization,
-  PauseCustomizationConfirmationButton,
   WhoIsInTheHub,
-  CheckIntoHubForm,
   Login,
   Personalization,
   escapeHtml,
@@ -578,11 +574,7 @@ app.get(
   getRcUserMiddleware,
   updateWhoIsAtTheHubMiddleware,
   async (req, res) => {
-    let { basic, sort } = req.query;
-
-    // `?basic` means the value of this would be empty string,
-    // but that should trigger the effect
-    const noCustomizations = typeof basic !== "undefined";
+    let { sort } = req.query;
 
     // `?sort=none` uses the default ordering instead of sort by count
     const sortRooms = sort !== "none";
@@ -621,10 +613,8 @@ app.get(
             roomNameToParticipantNames,
             participantNameToEntity,
             roomNameToNote,
-            rcUserIdToCustomization,
             myRcUserId: req.locals.rcUserId,
             myParticipantName: req.locals.rcPersonName,
-            noCustomizations,
             inTheHubParticipantNames,
             sortRooms,
             locationToNowAndNextEvents,
@@ -685,19 +675,6 @@ app.ws("/websocket", async function (ws, req) {
     );
   };
 
-  const customizationListener = async (rcUserId, action, isNew) => {
-    ws.send(
-      Customization(
-        mungeCustomization({
-          rcUserIdToCustomization,
-          rcUserId,
-          myRcUserId: req.locals.rcUserId,
-          isNew,
-        }),
-      ),
-    );
-  };
-
   const inTheHubListener = async () => {
     ws.send(
       WhoIsInTheHub(
@@ -712,13 +689,11 @@ app.ws("/websocket", async function (ws, req) {
 
   emitter.on("room-change", roomListener);
   emitter.on("in-the-hub-change", inTheHubListener);
-  emitter.on("customization-change", customizationListener);
 
   // If client closes connection, stop sending events
   ws.on("close", () => {
     emitter.off("room-change", roomListener);
     emitter.off("in-the-hub-change", inTheHubListener);
-    emitter.off("customization-change", customizationListener);
   });
 });
 
@@ -869,16 +844,6 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
   );
 }
 
-// Currently unused, adds a text field to submit a note when you check in
-app.get(
-  "/checkIntoHub.html",
-  isSessionAuthenticatedMiddleware,
-  hxBlockIfNotAuthenticated,
-  function (req, res) {
-    res.send(CheckIntoHubForm());
-  },
-);
-
 app.post(
   `/checkIntoHub`,
   isSessionAuthenticatedMiddleware,
@@ -900,94 +865,6 @@ app.post(
       },
     );
     res.sendStatus(200);
-  },
-);
-
-const rcUserIdToCustomization = {};
-app.post(
-  "/customization",
-  isSessionAuthenticatedMiddleware,
-  hxBlockIfNotAuthenticated,
-  getRcUserMiddleware,
-  function (req, res) {
-    const { code } = req.body;
-    const isNew = !rcUserIdToCustomization[req.locals.rcUserId];
-    rcUserIdToCustomization[req.locals.rcUserId] = {
-      code: code ?? "",
-      rcPersonName: req.locals.rcPersonName,
-    };
-
-    console.log(
-      `User ${req.locals.rcUserId} (${req.locals.rcPersonName}) ${
-        isNew ? "added a new" : "updated their"
-      } customization: \`${code}\``,
-    );
-
-    emitter.emit(
-      "customization-change",
-      req.locals.rcUserId,
-      `${isNew ? "added a new" : "updated their"} customization`,
-      isNew,
-    );
-
-    res.status(200).end();
-  },
-);
-
-app.post(
-  "/pauseCustomizationConfirmation.html",
-  isSessionAuthenticatedMiddleware,
-  hxBlockIfNotAuthenticated,
-  function (req, res) {
-    const { rcUserId } = req.query;
-
-    res.send(PauseCustomizationConfirmationButton({ rcUserId }));
-  },
-);
-
-app.post(
-  "/pauseCustomization",
-  isSessionAuthenticatedMiddleware,
-  hxBlockIfNotAuthenticated,
-  getRcUserMiddleware,
-  function (req, res) {
-    const { rcUserId: pauseCustomizationRcUserId } = req.query;
-
-    if (!rcUserIdToCustomization[pauseCustomizationRcUserId]) {
-      res.status(200).end();
-      return;
-    }
-
-    rcUserIdToCustomization[pauseCustomizationRcUserId].paused = true;
-
-    const { rcPersonName } =
-      rcUserIdToCustomization[pauseCustomizationRcUserId];
-
-    console.log(
-      `User ${req.locals.rcUserId} (${req.locals.rcPersonName}) paused user ${rcPersonName}'s (${pauseCustomizationRcUserId}) customization`,
-    );
-
-    emitter.emit(
-      "customization-change",
-      pauseCustomizationRcUserId,
-      `customization was paused`,
-    );
-
-    res.status(200).end();
-  },
-);
-
-app.get(
-  "/editCustomization.html",
-  isSessionAuthenticatedMiddleware,
-  hxBlockIfNotAuthenticated,
-  getRcUserMiddleware,
-  function (req, res) {
-    const { code } = rcUserIdToCustomization[req.locals.rcUserId] ?? {
-      code: "",
-    };
-
-    res.send(EditCustomizationCodeForm({ code }));
   },
 );
 
@@ -1072,10 +949,8 @@ const mungeRootBody = ({
   roomNameToParticipantNames,
   participantNameToEntity,
   roomNameToNote,
-  rcUserIdToCustomization,
   myRcUserId,
   myParticipantName,
-  noCustomizations,
   inTheHubParticipantNames,
   sortRooms,
   locationToNowAndNextEvents,
@@ -1124,55 +999,11 @@ const mungeRootBody = ({
     });
   }
 
-  const myCustomization =
-    !noCustomizations &&
-    rcUserIdToCustomization[myRcUserId] &&
-    mungeCustomization({
-      rcUserId: myRcUserId,
-      rcUserIdToCustomization,
-      myRcUserId,
-    });
-  const otherCustomizations =
-    !noCustomizations &&
-    Object.keys(rcUserIdToCustomization)
-      .filter((id) => id !== myRcUserId)
-      .map((rcUserId) =>
-        mungeCustomization({
-          rcUserId,
-          rcUserIdToCustomization,
-          myRcUserId,
-        }),
-      );
-
   return {
     whoIsInTheHub,
     rooms,
-    otherCustomizations,
-    myCustomization,
-    noCustomizations,
     myRcUserId,
     personalizations,
-  };
-};
-
-const mungeCustomization = ({
-  rcUserId,
-  rcUserIdToCustomization,
-  myRcUserId,
-  isNew,
-}) => {
-  let code = rcUserIdToCustomization[rcUserId].code ?? "";
-  const isPaused = rcUserIdToCustomization[rcUserId].paused;
-
-  if (isPaused) code = escapeHtml(code);
-  return {
-    rcUserId,
-    isPaused,
-    code,
-    isEmpty: rcUserIdToCustomization[rcUserId].code,
-    rcPersonName: rcUserIdToCustomization[rcUserId].rcPersonName,
-    isMine: myRcUserId === rcUserId,
-    isNew,
   };
 };
 
