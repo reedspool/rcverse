@@ -243,13 +243,22 @@ export const Personalization = ({
     <h2>Add personalization</h2>
 
     <p>
-      Each URL will be interpreted by its file extension, and included on the
-      page at load time. So, to include an HTML snippet, the URL must end with
-      <code>.html</code>. To include JavaScript via a <code>script</code> tag,
-      the URL must end with <code>.js</code>. To include CSS via a
-      <code>link</code> tag, the URL must end with <code>.css</code>. I admit
-      these rules are a little silly and subject to change after further
-      testing.
+      You can find
+      <a
+        href="https://github.com/recursecenter/wiki/wiki/RCVerse#share-your-personalizations-here"
+        target="_blank"
+        >URLs of community-made personalizations in the wiki</a
+      >.
+    </p>
+
+    <p>
+      There's a lot more information about how the Personalization system works
+      and how to make your own on
+      <a
+        href="https://github.com/recursecenter/wiki/wiki/RCVerse#personalizations"
+        target="_blank"
+        >the wiki page</a
+      >.
     </p>
 
     <form method="POST" action="/personalization">
