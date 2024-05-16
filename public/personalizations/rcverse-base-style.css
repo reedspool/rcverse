@@ -44,7 +44,6 @@ h6 {
 }
 
 .participants__participant {
-  width: 2em;
   position: relative;
   aspect-ratio: 1;
   border-radius: 99999px;

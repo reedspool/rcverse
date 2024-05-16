@@ -11,7 +11,7 @@ function extractCookieByName(cookie, name) {
   return null;
 }
 
-const RCVERSE_SERVICE_WORKER_CACHE_NAME = "rcverse-service-worker-cache-v4";
+const RCVERSE_SERVICE_WORKER_CACHE_NAME = "rcverse-service-worker-cache-v5";
 // Adapted from an MDN example
 const deleteOldCaches = async () => {
   const cacheKeepList = [RCVERSE_SERVICE_WORKER_CACHE_NAME];

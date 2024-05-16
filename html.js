@@ -478,6 +478,7 @@ export const Participant = ({
     class="participants__participant"
     src=${faceMarkerImagePath}
     title="${participantName} ${lastBatch}"
+    style="width: 2em;"
   />
 `;
 
