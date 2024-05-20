@@ -46,14 +46,15 @@ self.addEventListener("install", async function (event) {
     event,
   );
 
-  // TODO: Make index.html into a shell that can be cached and loaded instantly
-  // event.waitUntil(
-  //   caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME).then(function (cache) {
-  //     return cache.addAll([
-  //       "index.html"
-  //     ]);
-  //   }),
-  // );
+  event.waitUntil(
+    caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME).then(function (cache) {
+      return cache.addAll([
+        // TODO: Make index.html into a shell that can be cached and loaded instantly
+        //        "index.html"
+        "favicon.ico",
+      ]);
+    }),
+  );
 
   // TODO: Not sure when skipWaiting is necessary.
   //       https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/skipWaiting
@@ -85,7 +86,8 @@ self.addEventListener("fetch", async function (event) {
     // There's two URLs by which these are served?
     event.request.url.match(
       /https:\/\/assets.recurse.com\/rails\/active_storage\/representations/,
-    )
+    ) ||
+    event.request.url.startsWith("https://unpkg.com/htmx.org")
   ) {
     event.respondWith(cacheFirst(event.request));
     return;

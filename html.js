@@ -95,6 +95,9 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
     Each personalization is applied and then repeated as escaped HTML in text
     form so you can see exactly what's going on.
   </p>`;
+  if (!personalizations || personalizations.length === 0) {
+    body += html`<p><em>You have no personalizations</em></p>`;
+  }
   body += `<ul>`;
   body += personalizations
     .map((url) => {
@@ -189,17 +192,19 @@ export const Personalization = ({
 
     <a href="/">Back to RCVerse Home</a>
 
-    <ol>
-      ${personalizations
-        .map((url, index) =>
-          PersonalizationListItem({
-            url,
-            index,
-            total: personalizations.length,
-          }),
-        )
-        .join("\n")}
-    </ol>
+    ${!personalizations || personalizations.length == 0
+      ? html`<p><em>You have no personalizations</em></p>`
+      : html`<ol>
+          ${personalizations
+            .map((url, index) =>
+              PersonalizationListItem({
+                url,
+                index,
+                total: personalizations.length,
+              }),
+            )
+            .join("\n")}
+        </ol>`}
 
     <h2>Add personalization</h2>
 
