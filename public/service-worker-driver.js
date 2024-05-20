@@ -81,7 +81,7 @@ self.addEventListener("fetch", async function (event) {
   // Some things we want to cache after the first time we get them
   if (
     // If it's a user photo/asset served or proxied through RC's infra
-    event.request.url.match(/https:\/\/[^.].cloudfront.net\/assets\//) ||
+    event.request.url.match(/https:\/\/[^.]+.cloudfront.net\/assets\//) ||
     // There's two URLs by which these are served?
     event.request.url.match(
       /https:\/\/assets.recurse.com\/rails\/active_storage\/representations/,
@@ -111,7 +111,6 @@ self.addEventListener("fetch", async function (event) {
 self.addEventListener("message", async (event) => {
   if (event?.data?.type !== "update_personalizations") return;
   const personalizations = event?.data?.payload?.map(decodeURIComponent);
-  console.log("Service worker got personalizations", personalizations);
   const cache = await caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME);
   // TODO: How would these things be cleaned up?
   // TODO: In my vision for duplicating the back-end routes into this
@@ -119,5 +118,9 @@ self.addEventListener("message", async (event) => {
   //       be captured and entirely performed on the front-end. Unfortunately
   //       that seems to be explicitly rejected as a usecase currently.
   //       See https://stackoverflow.com/a/44445217
-  cache.addAll(personalizations);
+  const cacheReqs = await cache.keys();
+  const filtered = personalizations.filter(
+    (p) => !cacheReqs.find((req) => req.url.endsWith(p)),
+  );
+  cache.addAll(filtered);
 });
