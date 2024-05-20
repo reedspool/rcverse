@@ -68,6 +68,12 @@ self.addEventListener("activate", function (event) {
   console.log("Service worker activated", event);
   console.log("Service worker cleaning up old caches");
   event.waitUntil(deleteOldCaches());
+  event.waitUntil(async () => {
+    if (self.registration.navigationPreload) {
+      await self.registration.navigationPreload.enable();
+      console.log("Service worker enabled navigation preload");
+    }
+  });
   console.log("Service worker attempting to claim");
   event.waitUntil(clients.claim());
 });
@@ -90,13 +96,19 @@ self.addEventListener("fetch", async function (event) {
   }
 
   // Default, check the cache or just go with the original
+  // Note that this is wrapped in an immediately invoked function
+  // to get an encompassing promise for event.respondWith to wait for
   event.respondWith(
-    caches.match(event.request).then(function (cachedResponse) {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+    (async function () {
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) return cachedResponse;
+
+      // Else, use the preloaded response, if it's there
+      const response = await event.preloadResponse;
+      if (response) return response;
+
       return fetch(event.request);
-    }),
+    })(),
   );
 });
 
