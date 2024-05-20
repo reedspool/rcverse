@@ -27,7 +27,6 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <link rel="shortcut icon" type="image/png" href="favicon.ico" />
-      <link rel="stylesheet" type="text/css" href="recurse-com.css" />
       ${
         ""
         /* Mixpanel insert from https://docs.mixpanel.com/docs/quickstart/connect-your-data?sdk=javascript */

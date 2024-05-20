@@ -45,19 +45,15 @@ self.addEventListener("install", async function (event) {
     `Service worker installed. Initiating cache ${RCVERSE_SERVICE_WORKER_CACHE_NAME}`,
     event,
   );
-  event.waitUntil(
-    caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME).then(function (cache) {
-      return cache.addAll([
-        // TODO: Need to figure out dynamic loading of personalizations and
-        //       all dynamic data on the page (caching an empty shell with loading skeletons)
-        //       Otherwise it
-        // "/",
 
-        // Static resources
-        "/recurse-com.css",
-      ]);
-    }),
-  );
+  // TODO: Make index.html into a shell that can be cached and loaded instantly
+  // event.waitUntil(
+  //   caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME).then(function (cache) {
+  //     return cache.addAll([
+  //       "index.html"
+  //     ]);
+  //   }),
+  // );
 
   // TODO: Not sure when skipWaiting is necessary.
   //       https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/skipWaiting
