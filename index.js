@@ -909,10 +909,6 @@ app.post(
       req.body;
     let personalizations = getPersonalizationsFromReqCookies(req);
 
-    if (reset && reallyReset === "confirm") {
-      personalizations = [...DEFAULT_PERSONALIZATIONS];
-    }
-
     if (addUrl) {
       personalizations.push(addUrl.trim());
     }
@@ -935,6 +931,11 @@ app.post(
       const tmp = personalizations[index + 1];
       personalizations[index + 1] = personalizations[index];
       personalizations[index] = tmp;
+    }
+
+    if (reset && reallyReset === "confirm") {
+      // Null isn't an array, resets to current defaults
+      personalizations = null;
     }
 
     res.appendHeader(
