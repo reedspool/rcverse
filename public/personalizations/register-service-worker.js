@@ -26,19 +26,4 @@ navigator.serviceWorker.addEventListener("controllerchange", (event) => {
   console.log("controllerchange", event);
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-  // When we get a new service worker
-  // TODO: Future, hopefully we can replace this strategy with directly accessing
-  //       cookies in the service worker.
-  //       See https://developer.mozilla.org/en-US/docs/Web/API/Cookie_Store_API
-  // TODO: Wait... could be using postmessage, much simpler :facepalm:
-  //       https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorker/postMessage
-  // TODO: Should be updating this more often? Cookies can change more often
-  //       than just page load.
-  fetch("/service-worker/shareCookie", {
-    method: "POST",
-    body: JSON.stringify({ cookie: document.cookie }),
-  });
-});
-
 registerServiceWorker();

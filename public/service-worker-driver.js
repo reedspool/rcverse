@@ -73,35 +73,6 @@ self.addEventListener("activate", function (event) {
 });
 
 self.addEventListener("fetch", async function (event) {
-  if (event.request.url.match(/cookie/i)) {
-    event.respondWith(Promise.resolve(new Response("200 OK")));
-    const promise = new Response(event.request.body).text();
-    event.waitUntil(promise);
-    const { cookie } = JSON.parse(await promise);
-    const personalizationsCookie = extractCookieByName(
-      cookie,
-      "rcverse-personalizations",
-    );
-    const personalizations = JSON.parse(
-      decodeURIComponent(personalizationsCookie),
-    );
-
-    event.waitUntil(
-      caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME).then(function (cache) {
-        // TODO: Are we forcing re-request of all these things? Don't refresh
-        //       any which were already in cache
-        // TODO: How would these things be cleaned up?
-        // TODO: In my vision for duplicating the back-end routes into this
-        //       service worker, the Personalizations cookie modifications might
-        //       be captured and entirely performed on the front-end. Unfortunately
-        //       that seems to be explicitly rejected as a usecase currently.
-        //       See https://stackoverflow.com/a/44445217
-        return cache.addAll(personalizations);
-      }),
-    );
-    return;
-  }
-
   // Let the browser do its default thing for non-GET requests not matched above.
   if (event.request.method !== "GET") return;
 
@@ -127,4 +98,18 @@ self.addEventListener("fetch", async function (event) {
       return fetch(event.request);
     }),
   );
+});
+
+self.addEventListener("message", async (event) => {
+  if (event?.data?.type !== "update_personalizations") return;
+  const personalizations = event?.data?.payload?.map(decodeURIComponent);
+  console.log("Service worker got personalizations", personalizations);
+  const cache = await caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME);
+  // TODO: How would these things be cleaned up?
+  // TODO: In my vision for duplicating the back-end routes into this
+  //       service worker, the Personalizations cookie modifications might
+  //       be captured and entirely performed on the front-end. Unfortunately
+  //       that seems to be explicitly rejected as a usecase currently.
+  //       See https://stackoverflow.com/a/44445217
+  cache.addAll(personalizations);
 });

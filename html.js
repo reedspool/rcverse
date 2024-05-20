@@ -125,6 +125,25 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
     })
     .join("\n");
   body += `</ul>`;
+  // Send current list of personalizations to service worker to cache
+  body += html`<script>
+    top: {
+      if (!("serviceWorker" in navigator)) {
+        console.warning("Couldn't use serviceWorker");
+        break top;
+      }
+      const payload = [
+        "${personalizations.map(encodeURIComponent).join('","')}",
+      ];
+      navigator.serviceWorker.controller.postMessage({
+        type: "update_personalizations",
+        payload,
+      });
+      navigator.serviceWorker.onmessage = (event) => {
+        console.log("Received onmessageEvent from service worker:", event);
+      };
+    }
+  </script>`;
   body += `</details>`;
   body += html`
     <dl class="room-list">
