@@ -153,6 +153,7 @@ const silentZoomRooms = [
   "Laura’s Office",
   "Cat Viewing Portal",
   "Adventure Time With Finn",
+  "Emily’s Meeting Room",
 ];
 
 // NOTE: To test on the original host instead of the `recurse.com` proxy,
