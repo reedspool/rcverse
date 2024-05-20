@@ -623,7 +623,6 @@ app.get(
             roomNameToParticipantNames,
             participantNameToEntity,
             roomNameToNote,
-            myRcUserId: req.locals.rcUserId,
             myParticipantName: req.locals.rcPersonName,
             inTheHubParticipantNames,
             sortRooms,
@@ -959,7 +958,6 @@ const mungeRootBody = ({
   roomNameToParticipantNames,
   participantNameToEntity,
   roomNameToNote,
-  myRcUserId,
   myParticipantName,
   inTheHubParticipantNames,
   sortRooms,
@@ -1012,7 +1010,6 @@ const mungeRootBody = ({
   return {
     whoIsInTheHub,
     rooms,
-    myRcUserId,
     personalizations,
   };
 };

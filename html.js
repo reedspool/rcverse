@@ -66,12 +66,7 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
   </html>
 `;
 
-export const RootBody = ({
-  rooms,
-  whoIsInTheHub,
-  myRcUserId,
-  personalizations,
-}) => {
+export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
   // NOTE: This chunk is copied from the source of https://www.recurse.com/calendar
   //       Ostensibly that doesn't change very often, but you might want to check
   //       when it was last changed somehow.
