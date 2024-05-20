@@ -455,9 +455,19 @@ const getRcUserMiddleware = async (req, res, next) => {
     },
   );
 
-  const json = await fetchResponse.json();
-  req.locals.rcPersonName = json.name;
-  req.locals.rcUserId = String(json.id);
+  try {
+    const json = await fetchResponse.json();
+    req.locals.rcPersonName = json.name;
+    req.locals.rcUserId = String(json.id);
+  } catch (error) {
+    console.error(
+      "Error getting RC user profile. Error (followed by response):",
+    );
+    console.error(error);
+    console.error("Response:");
+    console.error(await fetchResponse.text());
+  }
+
   return next();
 };
 
