@@ -1,0 +1,5 @@
+/* See https://stackoverflow.com/a/53364612 */
+html {
+  visibility: visible;
+  opacity: 1;
+}

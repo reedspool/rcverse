@@ -1288,10 +1288,15 @@ const countPhrase = (count) => {
 };
 
 const DEFAULT_PERSONALIZATIONS = [
+  "/personalizations/hide-fouc.css",
+  "/personalizations/recurse-com__font-awesome.css",
+  "/personalizations/recurse-com__cherry-picked.css",
+  "/personalizations/recurse-com__header.html",
   "/personalizations/rcverse-base-style.css",
   "/personalizations/register-service-worker.js",
   "/personalizations/confetti-once.html",
   "/personalizations/hannahs-colorful-rooms.css",
+  "/personalizations/show-fouc.css",
 ];
 
 const getPersonalizationsFromReqCookies = (req) => {

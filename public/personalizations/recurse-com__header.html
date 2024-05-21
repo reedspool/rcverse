@@ -993,3 +993,19 @@
     </button>
   </div>
 </div>
+
+<script>
+  history.scrollRestoration = "manual";
+  const shouldScrollToAvoidContentJump = window.scrollY == 0;
+  const header = document.currentScript.previousElementSibling;
+  const main = document.querySelector("main");
+  document.body.insertBefore(header, main);
+
+  if (shouldScrollToAvoidContentJump) {
+    // Immediately scroll beyond it so it seems like was always there
+    window.scrollTo({
+      top: header.getBoundingClientRect().height,
+      behavior: "instant",
+    });
+  }
+</script>

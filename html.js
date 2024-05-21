@@ -66,22 +66,7 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
 `;
 
 export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
-  // NOTE: This chunk is copied from the source of https://www.recurse.com/calendar
-  //       Ostensibly that doesn't change very often, but you might want to check
-  //       when it was last changed somehow.
-  //       After copying, replaced all root relative links with absolute URLs
-  //       via `s/href=\"\//href="https:\/\/www.recurse.com\//g`
-  //       Also removed a few things in the menu specific to my user,
-  //       which makes this more than a simple copy and paste job.
-  // TODO: Next time I update this, I want to instead put it in
-  //       a separate HTML file, then include it here verbatim and
-  //       then filter and edit the content in JavaScript instead of
-  //       manually. It will make future updates much simpler.
   let body = "";
-  body += useSnippet("./html/font-awesome.snippet.html");
-  // TODO Clean up - entire recurse-com header can be a self-contained personalization
-  body += useSnippet("./html/recurse-com-other-css.snippet.html");
-  body += useSnippet("./html/recurse-com-header.snippet.html");
   body += `<main hx-ext="ws" ws-connect="/websocket">`;
   body += html`<h1>RCVerse</h1>`;
   body += useSnippet("./html/about.snippet.html");

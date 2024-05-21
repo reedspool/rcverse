@@ -1,4 +1,11 @@
-<style>
+main {
+  margin-top: 45px; /* Make room for header in page */
+}
+
+.p-l-2 {
+  padding-left: 1rem !important;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -26171,4 +26178,3 @@ input.type-ahead__input[type="search"] {
 .site-header pre .tex .formula {
     opacity: 0.5
 }
-</style>
