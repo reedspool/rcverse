@@ -20,13 +20,13 @@ Once you've done the above steps run the server locally with `npm start`.
 
 When you update those values, you'll need to run `fly deploy` to use the new versions.
 
-## Neon deployment
+## Neon deployment/PostGreSQL dev environment system
 
 Technically you can use any PostgreSQL database, not just Neon, but this project is using Neon.
 
 Sign up for a new account with Neon. Make a new database. Save the PostgreSQL connection string into the `config.env` variable `POSTGRES_CONNECTION` as well as in the Secrets section of your Fly App.
 
-Create two tables. Run these two queries separately in the Neon "SQL Editor":
+Create some tables. Run these queries separately in the Neon "SQL Editor":
 
 ```sql
 CREATE TABLE auth_user (
@@ -43,6 +43,49 @@ CREATE TABLE user_session (
     user_id TEXT NOT NULL REFERENCES auth_user(id),
     refresh_token TEXT
 )
+```
+
+Then create a table and fill it with all the standard RC room information.
+
+```sql
+CREATE TABLE zoom_rooms (
+    id serial PRIMARY KEY,
+    room_name TEXT,
+    location TEXT, /* Usually URL */
+    visibility TEXT /* if not "visible", shouldn't appear in UI */
+);
+
+INSERT INTO zoom_rooms (room_name, location, visibility)
+VALUES
+('Aegis','https://www.recurse.com/zoom/aegis','visible'),
+('Arca','https://www.recurse.com/zoom/arca','visible'),
+('Edos','https://www.recurse.com/zoom/edos','visible'),
+('Genera','https://www.recurse.com/zoom/genera','visible'),
+('Midori','https://www.recurse.com/zoom/midori','visible'),
+('Verve','https://www.recurse.com/zoom/verve','visible'),
+('Couches','https://www.recurse.com/zoom/couches','visible'),
+('Kitchen','https://www.recurse.com/zoom/kitchen','visible'),
+('Pairing Station 1','https://www.recurse.com/zoom/pairing_station_1','visible'),
+('Pairing Station 2','https://www.recurse.com/zoom/pairing_station_2','visible'),
+('Pairing Station 3','https://www.recurse.com/zoom/pairing_station_3','visible'),
+('Pairing Station 4','https://www.recurse.com/zoom/pairing_station_4','visible'),
+('Pairing Station 5','https://www.recurse.com/zoom/pairing_station_5','visible'),
+('Pairing Station 6','https://recurse.rctogether.com/zoom_meetings/35980/join','visible'),
+('Pairing Station 7','https://recurse.rctogether.com/zoom_meetings/35983/join','visible'),
+('Pomodoro Room','https://www.recurse.com/zoom/pomodoro_room','visible'),
+('Presentation Space','https://www.recurse.com/zoom/presentation_space','visible'),
+('Faculty Area','https://www.recurse.com/zoom/faculty_area','visible'),
+('Faculty Lounge','https://www.recurse.com/zoom/faculty_lounge','visible');
+```
+
+This table is meant mostly to be write-only mostly, but RC does change the rooms sometimes. To fill this table, please ask Reed. Mostly, it's not kept in this table since it may have personally identifying information in it.
+
+To add an invisible room (because maybe the name has PIID), insert a new invisible row. The only effect right now of invisible rooms is to squash a log message that "a surprising room showed up":
+
+```sql
+INSERT INTO zoom_rooms (room_name, location, visibility)
+VALUES
+('Reed\'s Roomba Collection','https://www.recurse.com/zoom/reeds-roombas,'invisible');
 ```
 
 ## RCTogether API (ActionCable)

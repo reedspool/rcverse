@@ -56,106 +56,6 @@ const port = process.env.PORT || 3001;
 
 expressWebsockets(app);
 
-const zoomRooms = [
-  {
-    location: "https://www.recurse.com/zoom/aegis",
-    roomName: "Aegis",
-  },
-  {
-    location: "https://www.recurse.com/zoom/arca",
-    roomName: "Arca",
-  },
-  {
-    location: "https://www.recurse.com/zoom/edos",
-    roomName: "Edos",
-  },
-  {
-    location: "https://www.recurse.com/zoom/genera",
-    roomName: "Genera",
-  },
-  {
-    location: "https://www.recurse.com/zoom/midori",
-    roomName: "Midori",
-  },
-  {
-    location: "https://www.recurse.com/zoom/verve",
-    roomName: "Verve",
-  },
-  {
-    location: "https://www.recurse.com/zoom/couches",
-    roomName: "Couches",
-  },
-  {
-    location: "https://www.recurse.com/zoom/kitchen",
-    roomName: "Kitchen",
-  },
-  {
-    location: "https://www.recurse.com/zoom/pairing_station_1",
-    roomName: "Pairing Station 1",
-  },
-  {
-    location: "https://www.recurse.com/zoom/pairing_station_2",
-    roomName: "Pairing Station 2",
-  },
-  {
-    location: "https://www.recurse.com/zoom/pairing_station_3",
-    roomName: "Pairing Station 3",
-  },
-  {
-    location: "https://www.recurse.com/zoom/pairing_station_4",
-    roomName: "Pairing Station 4",
-  },
-  {
-    location: "https://www.recurse.com/zoom/pairing_station_5",
-    roomName: "Pairing Station 5",
-  },
-  {
-    location: "https://recurse.rctogether.com/zoom_meetings/35980/join",
-    roomName: "Pairing Station 6",
-  },
-  {
-    location: "https://recurse.rctogether.com/zoom_meetings/35983/join",
-    roomName: "Pairing Station 7",
-  },
-  {
-    location: "https://www.recurse.com/zoom/pomodoro_room",
-    roomName: "Pomodoro Room",
-  },
-  {
-    location: "https://www.recurse.com/zoom/presentation_space",
-    roomName: "Presentation Space",
-  },
-  {
-    location: "https://www.recurse.com/zoom/faculty_area",
-    roomName: "Faculty Area",
-  },
-  {
-    location: "https://www.recurse.com/zoom/faculty_lounge",
-    roomName: "Faculty Lounge",
-  },
-];
-
-const zoomRoomNames = zoomRooms.map(({ roomName }) => roomName);
-const zoomRoomsByName = {};
-zoomRooms.forEach(({ roomName, ...rest }) => {
-  zoomRoomsByName[roomName] = { roomName, ...rest };
-});
-const zoomRoomsByLocation = {};
-zoomRooms.forEach(({ location, ...rest }) => {
-  zoomRoomsByLocation[location] = { location, ...rest };
-});
-
-// Zoom Rooms that are reported but that we purposely don't track
-const silentZoomRooms = [
-  "Sonali's Studio",
-  "Sydney, Australia",
-  "Nick's Nook",
-  "Laura’s Office",
-  "Cat Viewing Portal",
-  "Adventure Time With Finn",
-  "Emily’s Meeting Room",
-];
-
 // NOTE: To test on the original host instead of the `recurse.com` proxy,
 //       change the production base domain to the domain of the host.
 //       You'll also need to change the OAuth Client ID and Client Secret to
@@ -205,6 +105,40 @@ const recurseCalendarToken = process.env.RECURSE_CALENDAR_TOKEN;
 let inTheHubParticipantNames = [];
 let roomNameToParticipantNames = {};
 let participantNameToEntity = {};
+
+const sql = new pg.Pool({
+  connectionString: postgresConnection,
+});
+
+// TODO: If connection doesn't work, should either restart the server or
+//       loop and not proceed until it works.
+const zoomRoomsResult = await sql.query(
+  "select room_name, location, visibility from zoom_rooms",
+  [],
+);
+
+const zoomRooms = [];
+
+// Zoom Rooms that are reported but that we purposely don't track
+const silentZoomRooms = [];
+
+zoomRoomsResult.rows.forEach(({ room_name, location, visibility }) => {
+  if (visibility == "visible") {
+    zoomRooms.push({ roomName: room_name, location });
+  } else {
+    silentZoomRooms.push(room_name);
+  }
+});
+
+const zoomRoomNames = zoomRooms.map(({ roomName }) => roomName);
+const zoomRoomsByName = {};
+zoomRooms.forEach(({ roomName, ...rest }) => {
+  zoomRoomsByName[roomName] = { roomName, ...rest };
+});
+const zoomRoomsByLocation = {};
+zoomRooms.forEach(({ location, ...rest }) => {
+  zoomRoomsByLocation[location] = { location, ...rest };
+});
 
 // TODO
 //  The action cable API sometimes updates with a zoom room participant count,
@@ -313,10 +247,6 @@ const oauthClient = new OAuth2Client(
     redirectURI: `${baseURL}/myOauth2RedirectUri`,
   },
 );
-
-const sql = new pg.Pool({
-  connectionString: postgresConnection,
-});
 
 const adapter = new NodePostgresAdapter(sql, {
   user: "auth_user",
