@@ -141,6 +141,7 @@ h6 {
   font-size: 0.8em;
   color: darkgray;
   white-space: nowrap;
+  min-width: 10ch;
 }
 
 .room__details {
