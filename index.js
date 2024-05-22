@@ -517,6 +517,14 @@ app.get(
   async (req, res) => {
     let { sort } = req.query;
 
+    let personalizationsToAdd = req.query["personalize"];
+
+    if (!Array.isArray(personalizationsToAdd)) {
+      const url = personalizationsToAdd;
+      personalizationsToAdd = [];
+      if (url) personalizationsToAdd.push({ url, cache: false });
+    }
+
     // `?sort=none` uses the default ordering instead of sort by count
     const sortRooms = sort !== "none";
 
@@ -543,7 +551,10 @@ app.get(
      *  </p>
      */
 
-    const personalizations = getPersonalizationsFromReqCookies(req);
+    const personalizations = [
+      ...getPersonalizationsFromReqCookies(req),
+      ...personalizationsToAdd,
+    ];
 
     res.send(
       Page({
@@ -836,29 +847,39 @@ app.post(
   isSessionAuthenticatedMiddleware,
   hxBlockIfNotAuthenticated,
   function (req, res) {
-    const { addUrl, removeUrl, moveItemUp, moveItemDown, reset, reallyReset } =
-      req.body;
+    const {
+      addUrl,
+      removeUrl,
+      url,
+      index: indexString,
+      moveItemUp,
+      moveItemDown,
+      reset,
+      reallyReset,
+      cache,
+    } = req.body;
     let personalizations = getPersonalizationsFromReqCookies(req);
+    const index = parseInt(indexString);
+
+    if (Number.isInteger(index)) {
+      personalizations[index].cache = cache === "on";
+    }
 
     if (addUrl) {
-      personalizations.push(addUrl.trim());
+      personalizations.push({ url: addUrl.trim(), cache: true });
     }
 
     if (removeUrl) {
-      personalizations = personalizations.filter(
-        (currentUrl) => currentUrl !== removeUrl.trim(),
-      );
+      personalizations = personalizations.filter((p) => p.url !== url.trim());
     }
 
     if (moveItemUp) {
-      const index = parseInt(moveItemUp);
       const tmp = personalizations[index - 1];
       personalizations[index - 1] = personalizations[index];
       personalizations[index] = tmp;
     }
 
     if (moveItemDown) {
-      const index = parseInt(moveItemDown);
       const tmp = personalizations[index + 1];
       personalizations[index + 1] = personalizations[index];
       personalizations[index] = tmp;
@@ -1227,7 +1248,9 @@ const DEFAULT_PERSONALIZATIONS = [
   "/personalizations/confetti-once.html",
   "/personalizations/hannahs-colorful-rooms.css",
   "/personalizations/show-fouc.css",
-];
+].map((url) => {
+  return { url, cache: true };
+});
 
 const getPersonalizationsFromReqCookies = (req) => {
   let parsed;
@@ -1239,5 +1262,12 @@ const getPersonalizationsFromReqCookies = (req) => {
     /* Do nothing - it's either an array set intentionally or we'll reset it */
   }
   if (!Array.isArray(parsed)) parsed = [...DEFAULT_PERSONALIZATIONS];
-  return parsed;
+
+  // TODO: Temporarily transform from the old shape, an array of string URLs,
+  //       into an array of objects. Can delete in some future time?
+  return parsed.map((personalization) =>
+    typeof personalization === "string"
+      ? { url: personalization, cache: true }
+      : personalization,
+  );
 };

@@ -85,7 +85,7 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
   }
   body += `<ul>`;
   body += personalizations
-    .map((url) => {
+    .map(({ url }) => {
       const include = url.endsWith(".css")
         ? CSSInclude({ url })
         : url.endsWith(".html")
@@ -120,7 +120,15 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
         break top;
       }
       const payload = [
-        "${personalizations.map(encodeURIComponent).join('","')}",
+        ${personalizations
+          .map(
+            // `encodeURIComponent` to prevent an HTML or JS injection
+            ({ url, cache }) => `{
+              url: "${encodeURIComponent(url)}",
+              cache: ${cache}
+            }`,
+          )
+          .join(",")},
       ];
       navigator.serviceWorker.controller.postMessage({
         type: "update_personalizations",
@@ -181,9 +189,10 @@ export const Personalization = ({
       ? html`<p><em>You have no personalizations</em></p>`
       : html`<ol>
           ${personalizations
-            .map((url, index) =>
+            .map(({ url, cache }, index) =>
               PersonalizationListItem({
                 url,
+                cache,
                 index,
                 total: personalizations.length,
               }),
@@ -234,7 +243,9 @@ export const Personalization = ({
     </p>
 
     <ol>
-      ${defaultPersonalizations.map((url) => html`<li>${url}</li>`).join("\n")}
+      ${defaultPersonalizations
+        .map(({ url }) => html`<li>${url}</li>`)
+        .join("\n")}
     </ol>
 
     <p>
@@ -248,27 +259,27 @@ export const Personalization = ({
     </form>
   </main> `;
 };
-export const PersonalizationListItem = ({ url, index, total }) => {
+export const PersonalizationListItem = ({ url, cache, index, total }) => {
   const isFirst = index === 0;
   const isLast = index === total - 1;
   return html`<li>
     ${url} - <a target="_blank" href="${url}">Visit</a>
     <form method="POST" action="/personalization">
-      <input type="hidden" name="removeUrl" value="${url}" />
-      <button type="submit">Remove</button>
+      <input type="hidden" name="url" value="${url}" />
+      <input type="submit" name="removeUrl" value="Remove" />
+      <input type="hidden" name="index" value="${index}" />
+      ${
+        isFirst
+          ? ""
+          : html`<input type="submit" name="moveItemUp" value="Move up" />`
+      }
+      ${
+        isLast
+          ? ""
+          : html`<input type="submit" name="moveItemDown" value="Move Down" />`
+      }
+      <label>Cache <input type="checkbox" name="cache" ${cache ? "checked" : ""} onchange="this.form.submit()" />
     </form>
-    ${isFirst
-      ? ""
-      : html`<form method="POST" action="/personalization">
-          <input type="hidden" name="moveItemUp" value="${index}" />
-          <button type="submit">Move up</button>
-        </form>`}
-    ${isLast
-      ? ""
-      : html`<form method="POST" action="/personalization">
-          <input type="hidden" name="moveItemDown" value="${index}" />
-          <button type="submit">Move down</button>
-        </form>`}
   </li>`;
 };
 export const Login = ({ reason } = { reason: "" }) => html`

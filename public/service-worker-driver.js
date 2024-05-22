@@ -14,7 +14,7 @@ function extractCookieByName(cookie, name) {
 // To refresh user's caches automatically, change the number in this name.
 // That will cause `deleteOldCaches` to clean up the past one. So users might
 // still need to refresh after that switch happens?
-const RCVERSE_SERVICE_WORKER_CACHE_NAME = "rcverse-service-worker-cache-v6";
+const RCVERSE_SERVICE_WORKER_CACHE_NAME = "rcverse-service-worker-cache-v7";
 // Adapted from an MDN example
 const deleteOldCaches = async () => {
   const cacheKeepList = [RCVERSE_SERVICE_WORKER_CACHE_NAME];
@@ -112,17 +112,30 @@ self.addEventListener("fetch", async function (event) {
 
 self.addEventListener("message", async (event) => {
   if (event?.data?.type !== "update_personalizations") return;
-  const personalizations = event?.data?.payload?.map(decodeURIComponent);
+  const personalizations = event?.data?.payload?.map(({ url, ...rest }) => ({
+    url: decodeURIComponent(url),
+    ...rest,
+  }));
   const cache = await caches.open(RCVERSE_SERVICE_WORKER_CACHE_NAME);
-  // TODO: How would these things be cleaned up?
   // TODO: In my vision for duplicating the back-end routes into this
   //       service worker, the Personalizations cookie modifications might
   //       be captured and entirely performed on the front-end. Unfortunately
   //       that seems to be explicitly rejected as a usecase currently.
   //       See https://stackoverflow.com/a/44445217
   const cacheReqs = await cache.keys();
-  const filtered = personalizations.filter(
-    (p) => !cacheReqs.find((req) => req.url.endsWith(p)),
+  cache.addAll(
+    personalizations
+      .filter(
+        // `endsWith` to support paths, e.g. /personalizations/confetti.html
+        ({ url, cache }) =>
+          cache && !cacheReqs.find((req) => req.url.endsWith(url)),
+      )
+      .map(({ url }) => url),
   );
-  cache.addAll(filtered);
+  personalizations.forEach(({ url, cache: shouldCache }) => {
+    if (shouldCache) return;
+    const cachedReq = cacheReqs.find((req) => req.url.endsWith(url));
+    if (!cachedReq) return;
+    cache.delete(cachedReq);
+  });
 });
