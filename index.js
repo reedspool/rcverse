@@ -502,6 +502,10 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
   return next();
 };
 const personalizationsCookieName = "rcverse-personalizations";
+// TODO: Must find a different strategy than relying on long term cookies alone
+//       as cookies can't have a max age beyond 400 days. See
+//       https://developer.chrome.com/blog/cookie-max-age-expires/
+const personalizationsCookieMaxAge = Math.pow(2, 31) - 1;
 // TODO I don't know where to write this
 // Client could lose Websocket connection for a long time, like if they close their laptop
 // HTMX is going to try to reconnect immediately, but it doesn't do anything
@@ -555,6 +559,12 @@ app.get(
       ...getPersonalizationsFromReqCookies(req),
       ...personalizationsToAdd,
     ];
+
+    // TODO: Always set the personalizations cookie to update maxAge to
+    //       today + max maxAge since cookies have a max time of a year. So
+    //       this cookie should not expire until (max maxAge + last time you
+    //       loaded the page). BUT shouldn't set any cookie if you didn't have
+    //       any cookie set already
 
     res.send(
       Page({
@@ -892,10 +902,9 @@ app.post(
 
     res.appendHeader(
       "Set-Cookie",
-      new Cookie(
-        personalizationsCookieName,
-        JSON.stringify(personalizations),
-      ).serialize(),
+      new Cookie(personalizationsCookieName, JSON.stringify(personalizations), {
+        maxAge: personalizationsCookieMaxAge,
+      }).serialize(),
     );
 
     // Redirect instead of rendering the page again, Post-Redirect-Get
