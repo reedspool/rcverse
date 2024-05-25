@@ -519,14 +519,16 @@ app.get(
   getRcUserMiddleware,
   updateWhoIsAtTheHubMiddleware,
   async (req, res) => {
-    let { sort } = req.query;
+    let { sort, personalize } = req.query;
 
-    let personalizationsToAdd = req.query["personalize"];
-
-    if (!Array.isArray(personalizationsToAdd)) {
-      const url = personalizationsToAdd;
-      personalizationsToAdd = [];
-      if (url) personalizationsToAdd.push({ url, cache: false });
+    // If `personalize` appears once in query string, it's a string. If it
+    // appears multiple times, it's an array of strings. Coerce to one shape
+    if (Array.isArray(personalize)) {
+      personalize = personalize.map((url) => ({ url, cache: false }));
+    } else {
+      const url = personalize;
+      personalize = [];
+      if (url) personalize.push({ url, cache: false });
     }
 
     // `?sort=none` uses the default ordering instead of sort by count
@@ -557,7 +559,7 @@ app.get(
 
     const personalizations = [
       ...getPersonalizationsFromReqCookies(req),
-      ...personalizationsToAdd,
+      ...personalize,
     ];
 
     // TODO: Always set the personalizations cookie to update maxAge to
