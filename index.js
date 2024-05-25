@@ -534,6 +534,9 @@ app.get(
     // `?sort=none` uses the default ordering instead of sort by count
     const sortRooms = sort !== "none";
 
+    // `?reset` temporarily disables all saved personalizations
+    const reset = req.query.hasOwnProperty("reset");
+
     // TODO: If any includes are in the URL, then we redirect to a page
     //       to manage and accept your new URLs with disclaimers and such.
     //       Then, if the user accepts the disclaimers, we add that include to
@@ -557,10 +560,13 @@ app.get(
      *  </p>
      */
 
-    const personalizations = [
-      ...getPersonalizationsFromReqCookies(req),
-      ...personalize,
-    ];
+    const personalizations = [];
+
+    if (!reset) {
+      personalizations.push(...getPersonalizationsFromReqCookies(req));
+    }
+
+    personalizations.push(...personalize);
 
     // TODO: Always set the personalizations cookie to update maxAge to
     //       today + max maxAge since cookies have a max time of a year. So
