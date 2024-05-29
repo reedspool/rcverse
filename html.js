@@ -158,7 +158,12 @@ export const JSInclude = ({ url }) => html`<script src="${url}"></script>`;
 export const CSSInclude = ({ url }) =>
   html`<link rel="stylesheet" type="text/css" href="${url}" />`;
 export const HTMLInclude = ({ url }) => html`
-  <div hx-get="${url}" hx-trigger="load" class="display-contents"></div>
+  <div
+    hx-get="${url}"
+    hx-trigger="load"
+    hx-request="js:noHeaders:true"
+    class="display-contents"
+  ></div>
 `;
 
 // TODO: Could have an iframe preview of the homepage which htmx triggers to
