@@ -102,8 +102,8 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
           <summary>Code</summary>
           <pre class="personalization__code-preformatted"><code
             hx-get="${url}"
-            hx-trigger="load"
-            hx-swap="outerHTML"
+            hx-trigger="click once from:closest details"
+            hx-swap="innerHTML"
             hx-ext="escape-html"
             class="display-contents"
             ></code></pre>
