@@ -1,6 +1,6 @@
 const registerServiceWorker = async () => {
   if (!("serviceWorker" in navigator)) {
-    console.warning("Couldn't register service worker");
+    console.warn("Couldn't register service worker");
     return;
   }
   try {

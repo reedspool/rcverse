@@ -178,7 +178,7 @@ export const Personalization = ({
 }) => {
   return html`<main class="personalization">
     <link rel="stylesheet" type="text/css" href="personalizations.css" />
-    <h1>RCVerse Personaliztions</h1>
+    <h1>RCVerse Personalizations</h1>
 
     <p>
       Your personalizations are listed below. Personalizations aren't applied on
