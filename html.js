@@ -146,7 +146,7 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
     </dl>
 
     <hl />
-    <p>You're logged in! - <a href="/logout">logout</a></p>
+    <p>You're logged in! - <a href="/logout">log out</a></p>
   `;
 
   body += html`</main>`;
@@ -298,7 +298,7 @@ export const Login = ({ reason } = { reason: "" }) => html`
           happens frequently.
         </p>`
       : ""}
-    <p><a hx-boost="false" href="/getAuthorizationUrl">Login</a></p>
+    <p><a hx-boost="false" href="/getAuthorizationUrl">Log in</a></p>
   </main>
 `;
 
