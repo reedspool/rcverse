@@ -165,8 +165,15 @@ emitter.on("participant-room-data", async (entity) => {
   }
 
   if (!participantNameToEntity[participantName]) {
-    participantNameToEntity[participantName] = { faceMarkerImagePath };
+    participantNameToEntity[participantName] = {};
   }
+
+  // Always want to have the latest of these
+  participantNameToEntity[participantName] = {
+    ...participantNameToEntity[participantName],
+    faceMarkerImagePath,
+    lastBatch,
+  };
 
   let hubStatusVerb = "";
   if (inTheHub && !participantNameToEntity[participantName]?.inTheHub) {
@@ -184,7 +191,6 @@ emitter.on("participant-room-data", async (entity) => {
     participantNameToEntity[participantName] = {
       ...participantNameToEntity[participantName],
       inTheHub,
-      lastBatch,
     };
     emitter.emit("in-the-hub-change");
   }
@@ -197,6 +203,14 @@ emitter.on("participant-room-data", async (entity) => {
       // Ignore, we already have this person in the right zoom room
       return;
     }
+
+    // Remove them from their previous room
+    if (previousRoomName) {
+      roomNameToParticipantNames[previousRoomName] = roomNameToParticipantNames[
+        previousRoomName
+      ].filter((name) => name !== participantName);
+    }
+
     if (!roomNameToParticipantNames[roomName]) {
       roomNameToParticipantNames[roomName] = [];
     }
@@ -206,8 +220,6 @@ emitter.on("participant-room-data", async (entity) => {
     participantNameToEntity[participantName] = {
       ...participantNameToEntity[participantName],
       roomName,
-      faceMarkerImagePath,
-      lastBatch,
     };
 
     verb = "enterred";
@@ -227,8 +239,6 @@ emitter.on("participant-room-data", async (entity) => {
     participantNameToEntity[participantName] = {
       ...participantNameToEntity[participantName],
       roomName,
-      faceMarkerImagePath,
-      lastBatch,
     };
 
     verb = "departed";
