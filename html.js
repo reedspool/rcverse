@@ -337,13 +337,14 @@ export const Room = ({
         ${Participants({ participants, countPhrase })}
 
         <p>
+          Join
           <a
             class="room__join"
             href="${roomLocation}"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Join ${roomName}
+            ${roomName}
           </a>
         </p>
 
@@ -419,7 +420,11 @@ export const Note = ({
   </div>
 `;
 
-export const EditNoteForm = ({ roomName, noteContent }) => html`
+export const EditNoteForm = ({
+  roomName,
+  noteContent,
+  hasVirtualRCConnectedBlock,
+}) => html`
   <form
     method="POST"
     action="/note"
@@ -439,6 +444,18 @@ export const EditNoteForm = ({ roomName, noteContent }) => html`
       >
 ${noteContent}</textarea
       >
+      <p>
+        Use
+        <a
+          href="https://daringfireball.net/projects/markdown/basics"
+          target="_blank"
+          >Markdown</a
+        >
+        for links, bold, and italics.
+        ${hasVirtualRCConnectedBlock
+          ? "Changes synced to VirtualRC."
+          : "This note is only on RCVerse."}
+      </p>
       <div>
         <button type="submit">Update note</button>
       </div>

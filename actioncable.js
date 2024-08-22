@@ -43,16 +43,24 @@ export function connect(APP_ID, APP_SECRET, emitter) {
           console.error("Saw world data twice without a reconnect");
         hasSeenWorldDataWithoutReconnect = true;
         payload.entities.forEach((entity) => {
-          const {
-            type,
-            zoom_user_display_name,
-            person_name,
-            image_path,
-            last_seen_at,
-            rc_hub_visit_today,
-            flair,
-          } = entity;
-          if (type === "Avatar" && zoom_user_display_name !== null) {
+          const { type, name, zoom_user_display_name } = entity;
+          if (type === "Bot" && name?.match(/rcverse/i)) {
+            console.error(`Uncleaned bot found: ${entity.id}`, entity);
+          } else if (type === "Note") {
+            const { id, note_text, note_updated_at } = entity;
+            emitter.emit("room-note-data", {
+              id: String(id),
+              content: note_text,
+              updatedTimestamp: note_updated_at,
+            });
+          } else if (type === "Avatar" && zoom_user_display_name !== null) {
+            const {
+              person_name,
+              image_path,
+              last_seen_at,
+              rc_hub_visit_today,
+              flair,
+            } = entity;
             const lastSeenMillis = new Date(last_seen_at).getTime();
             const millisSinceLastSeen = Date.now() - lastSeenMillis;
             const hourInMillis = 1000 * 60 * 60;
@@ -75,23 +83,30 @@ export function connect(APP_ID, APP_SECRET, emitter) {
           }
         });
       } else if (type === "entity") {
-        const {
-          type,
-          person_name,
-          zoom_user_display_name,
-          image_path,
-          rc_hub_visit_today,
-          flair,
-        } = payload;
-        if (type !== "Avatar") return;
-
-        emitter.emit("participant-room-data", {
-          participantName: person_name,
-          roomName: zoom_user_display_name,
-          faceMarkerImagePath: image_path,
-          inTheHub: rc_hub_visit_today,
-          lastBatch: flair,
-        });
+        const { type } = payload;
+        if (type === "Note") {
+          const { id, note_text, note_updated_at } = payload;
+          emitter.emit("room-note-data", {
+            id: String(id),
+            content: note_text,
+            updatedTimestamp: note_updated_at,
+          });
+        } else if (type === "Avatar") {
+          const {
+            person_name,
+            zoom_user_display_name,
+            image_path,
+            rc_hub_visit_today,
+            flair,
+          } = payload;
+          emitter.emit("participant-room-data", {
+            participantName: person_name,
+            roomName: zoom_user_display_name,
+            faceMarkerImagePath: image_path,
+            inTheHub: rc_hub_visit_today,
+            lastBatch: flair,
+          });
+        }
       }
     },
   });

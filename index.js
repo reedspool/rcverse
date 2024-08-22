@@ -11,6 +11,7 @@ import { Cookie, parseCookies } from "oslo/cookie";
 import express from "express";
 import pg from "pg";
 import { NodePostgresAdapter } from "@lucia-auth/adapter-postgresql";
+import { marked } from "marked";
 import { connect } from "./actioncable.js";
 import EventEmitter from "node:events";
 import {
@@ -26,6 +27,25 @@ import {
 import expressWebsockets from "express-ws";
 import ical from "node-ical";
 import fs from "node:fs";
+
+// Prepare Markdown renderer to force links to always target="_blank"
+const renderer = {
+  link({ tokens, href, title }) {
+    const text = this.parser.parseInline(tokens);
+    const titleAttribute = title
+      ? ` title="${title.replaceAll(/"/g, "&quot;")}"`
+      : "";
+    return `<a target="_blank" rel="nofollow" href="${href}"${titleAttribute}>${text}</a>`;
+  },
+};
+
+marked.use({
+  // See https://marked.js.org/using_advanced#options
+  async: false,
+  // Original markdown.pl, which I think RCTogether conforms to
+  pedantic: true,
+  renderer,
+});
 
 // Catch and snuff all uncaught exceptions and uncaught promise rejections.
 // We can manually restart the server if it gets into a bad state, but we want
@@ -90,6 +110,7 @@ const clientSecret = process.env.OAUTH_CLIENT_SECRET;
 const postgresConnection = process.env.POSTGRES_CONNECTION;
 
 // From https://recurse.rctogether.com/apps
+// TODO: Update this to true meaning, "RCTogether App ID/Secret", not just Action Cable but Rest API too
 const actionCableAppId = process.env.ACTION_CABLE_APP_ID;
 const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 
@@ -113,7 +134,7 @@ const sql = new pg.Pool({
 // TODO: If connection doesn't work, should either restart the server or
 //       loop and not proceed until it works.
 const zoomRoomsResult = await sql.query(
-  "select room_name, location, visibility from zoom_rooms",
+  "select room_name, location, note_block_rctogether_id, visibility from zoom_rooms",
   [],
 );
 
@@ -122,13 +143,19 @@ const zoomRooms = [];
 // Zoom Rooms that are reported but that we purposely don't track
 const silentZoomRooms = [];
 
-zoomRoomsResult.rows.forEach(({ room_name, location, visibility }) => {
-  if (visibility == "visible") {
-    zoomRooms.push({ roomName: room_name, location });
-  } else {
-    silentZoomRooms.push(room_name);
-  }
-});
+zoomRoomsResult.rows.forEach(
+  ({ room_name, location, visibility, note_block_rctogether_id }) => {
+    if (visibility == "visible") {
+      zoomRooms.push({
+        roomName: room_name,
+        location,
+        noteBlockRCTogetherId: note_block_rctogether_id,
+      });
+    } else {
+      silentZoomRooms.push(room_name);
+    }
+  },
+);
 
 const zoomRoomNames = zoomRooms.map(({ roomName }) => roomName);
 const zoomRoomsByName = {};
@@ -147,7 +174,6 @@ zoomRooms.forEach(({ location, ...rest }) => {
 //  Question: Does that participant count also reflect that person NOT in the room?
 //     I'm guessing it will not show the person in the room, because we also observed
 //     the little bubble in Virutal RC didn't show that person as in the room
-connect(actionCableAppId, actionCableAppSecret, emitter);
 emitter.on("participant-room-data-reset", async () => {
   inTheHubParticipantNames = [];
   roomNameToParticipantNames = {};
@@ -248,6 +274,24 @@ emitter.on("participant-room-data", async (entity) => {
   // console.log(`${participantName} ${verb} ${roomName}`);
   emitter.emit("room-change", participantName, verb, roomName);
 });
+emitter.on("room-note-data", async (entity) => {
+  let { id, content, updatedTimestamp } = entity;
+
+  const room = zoomRooms.find(
+    ({ noteBlockRCTogetherId }) => id === noteBlockRCTogetherId,
+  );
+
+  if (!room?.roomName) return;
+
+  roomNameToNote[room.roomName] = {
+    content: content ?? "",
+    date: new Date(updatedTimestamp),
+  };
+
+  emitter.emit("room-change", "RCTogether", "updated", room.roomName);
+});
+
+connect(actionCableAppId, actionCableAppSecret, emitter);
 
 const oauthClient = new OAuth2Client(
   clientId,
@@ -681,34 +725,154 @@ app.post(
   "/note",
   isSessionAuthenticatedMiddleware,
   hxBlockIfNotAuthenticated,
-  function (req, res) {
+  async function (req, res) {
     const { room, content } = req.body;
-    if (!content) {
-      delete roomNameToNote[room];
-    } else {
-      roomNameToNote[room] = {
-        content: escapeHtml(content) ?? "",
-        date: new Date(),
-      };
+
+    const zoomRoom = zoomRooms.find(({ roomName }) => room === roomName);
+
+    if (!zoomRoom) {
+      console.error(
+        `Delete this message, but failed to find zoom room for name '${room}'`,
+      );
     }
 
+    const { noteBlockRCTogetherId } = zoomRoom;
+
+    // TODO: Now we need coordinates for a free square next to a note block
+    //       Just going to hard code these for the moment, because there's no pathfinding available.
+    const noteBlockRCTogetherIdToAdjacentFreeSpacePositions = {
+      152190: { x: 68, y: 58 }, // Pairing station 1
+      152189: { x: 68, y: 51 }, // Pairing station 2
+      152193: { x: 64, y: 48 }, // Pairing station 3
+      152191: { x: 65, y: 43 }, // Pairing station 4
+      140538: { x: 70, y: 43 }, // Pairing station 5
+      152198: { x: 74, y: 43 }, // Pairing station 6
+      152192: { x: 77, y: 43 }, // Pairing station 7
+      81750: { x: 85, y: 56 }, //  Couches
+    };
+
+    const coords =
+      noteBlockRCTogetherIdToAdjacentFreeSpacePositions[noteBlockRCTogetherId];
+
+    if (!noteBlockRCTogetherId || !coords) {
+      // There is no VirtualRC block associated with this room, so just update
+      // local data. This is totally normal for non-pairing station rooms
+      if (!content) {
+        delete roomNameToNote[room];
+      } else {
+        roomNameToNote[room] = {
+          content: escapeHtml(content) ?? "",
+          date: new Date(),
+        };
+      }
+      emitter.emit("room-change", "someone", "updated the note for", room);
+      return;
+    }
+
+    const baseUrl = `https://recurse.rctogether.com/api`;
+    const botEndpoint = `${baseUrl}/bots/`;
+    const noteEndpoint = `${baseUrl}/notes/`;
+    const authParams = `app_id=${actionCableAppId}&app_secret=${actionCableAppSecret}`;
+    const headers = {
+      "Content-Type": "application/json",
+    };
+
+    // TODO: Remove this - it's a testing utility because if something goes
+    //       wrong in this flow, my bot would not be properly deleted and I'd
+    //       have to delete it on the next experiment
+    await fetch(botEndpoint + "155487" + "?" + authParams, {
+      method: "DELETE",
+      headers,
+    });
+    let botId;
+    try {
+      let apiResult = await fetch(botEndpoint + "?" + authParams, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: "RCVerse",
+          x: coords.x,
+          y: coords.y,
+          emoji: "✏️",
+        }),
+      });
+
+      const botCreated = await apiResult.json();
+      console.log("Bot created with ID #" + botCreated.id);
+      if (!botCreated.id) {
+        console.log("Bot creation failed somehow");
+        console.log(apiResult.status);
+        console.log(apiResult.statusText);
+        console.log(botCreated);
+      }
+      botId = String(botCreated.id);
+
+      // Even if there's a problem with writing the note, we still want to
+      // catch and cleanup the bot
+      try {
+        // Update the note
+        apiResult = await fetch(
+          noteEndpoint + noteBlockRCTogetherId + "?" + authParams,
+          {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({
+              bot_id: botCreated.id,
+              note: {
+                note_text: content,
+              },
+            }),
+          },
+        );
+      } catch (errorNote) {
+        console.error("Error with editing the note in VirtualRC", error);
+      }
+
+      // Delete the bot
+      await fetch(botEndpoint + botId + "?" + authParams, {
+        method: "DELETE",
+        headers,
+      });
+    } catch (error) {
+      console.error("Error with VirtualRC note-writing bot", error);
+      res.status(500).end();
+      return;
+    }
     // console.log(`Room '${room}' note changed to ${content} (pre-escape)`);
 
-    emitter.emit("room-change", "someone", "updated the note for", room);
+    // Only if the update in RCTogether was ostensibly successful do we
+    // optimistically update our own version.
+    // TODO: Disabling optimistic update, just waiting for ActionCable round trip instead
+    // TODO: When I re-enable, be mindful of the duplicated logic that does real markdown work - probably extract to function
+    // if (!content) {
+    //   delete roomNameToNote[room];
+    // } else {
+    //   roomNameToNote[room] = {
+    //     content: escapeHtml(content) ?? "",
+    //     date: new Date(),
+    //   };
+    // }
+    // emitter.emit("room-change", "someone", "updated the note for", room);
 
     res.status(200).end();
   },
 );
 
-const mungeEditNoteForm = ({ roomName, roomNameToNote }) => ({
+const mungeEditNoteForm = ({ roomName, roomNameToNote, zoomRooms }) => ({
   roomName,
   noteContent: roomNameToNote[roomName]?.content ?? "",
+  hasVirtualRCConnectedBlock: Boolean(
+    zoomRooms.find(({ roomName: zoomRoomName }) => zoomRoomName === roomName)
+      ?.noteBlockRCTogetherId,
+  ),
 });
 
 app.get("/note.html", isSessionAuthenticatedMiddleware, function (req, res) {
   const { roomName } = req.query;
 
-  res.send(EditNoteForm(mungeEditNoteForm({ roomName, roomNameToNote })));
+  res.send(
+    EditNoteForm(mungeEditNoteForm({ roomName, roomNameToNote, zoomRooms })),
+  );
 });
 
 // Every hour, clean up any notes which haven't been updated for 4 hours
@@ -730,7 +894,13 @@ function cleanNotes() {
 
   setTimeout(cleanNotes, 1000 * 60 * 60); // 1 hour
 }
-cleanNotes();
+// TODO: Disabled the note cleaning function (we never start it) after connecting
+//       the RCTogether room notes to the RCverse notes. The norm on RCTogether
+//       has been to reset the note to be non-empty
+//       (kinda like a form "Pairing on: Open invite: ?") We could do that, and
+//       we could store the default note (because it's different for pairing
+//       stations than for couches) in the SQL table next to the note ID
+// cleanNotes();
 
 // We only need to update from the remote rarely, since the calendar doesn't
 // change quickly very often (people rarely cancel things last minute)
@@ -1006,7 +1176,9 @@ const mungeRoom = ({
     roomName,
     roomLocation,
     hasNote: Boolean(roomNameToNote[roomName]),
-    noteContent: roomNameToNote[roomName]?.content ?? "",
+    noteContent: roomNameToNote[roomName]?.content
+      ? marked.parse(escapeHtml(roomNameToNote[roomName]?.content ?? ""))
+      : "",
     noteDateTime: roomNameToNote[roomName]?.date?.toISOString() ?? null,
     noteHowManyMinutesAgo: howManyMinutesAgo(roomNameToNote[roomName]?.date),
     isEmpty: (roomNameToParticipantNames[roomName]?.length ?? 0) == 0,
