@@ -27,6 +27,7 @@ import {
 import expressWebsockets from "express-ws";
 import ical from "node-ical";
 import fs from "node:fs";
+import { formatDistanceToNow } from "date-fns";
 
 // Prepare Markdown renderer to force links to always target="_blank"
 const renderer = {
@@ -1383,54 +1384,12 @@ const getTodayDateForHubVisitsAPI = () => {
 const MIN = 1000 * 60;
 const howManyMinutesAgo = (date) => {
   if (!date) return null;
-  const millisNow = Date.now();
-  const millisThen = date.getTime();
-  const difference = millisNow - millisThen;
-  return difference < 0
-    ? "in the future?" // ???
-    : difference < 2 * MIN
-      ? "just now"
-      : difference < 5 * MIN
-        ? "a few minutes ago"
-        : difference < 10 * MIN
-          ? "five-ish minutes ago"
-          : difference < 20 * MIN
-            ? "15 minutes ago"
-            : difference < 30 * MIN
-              ? "recently"
-              : difference < 45 * MIN
-                ? "a half hour ago"
-                : difference < 60 * MIN
-                  ? "45 min ago"
-                  : difference < 80 * MIN
-                    ? "over an hour ago"
-                    : "a while ago";
+  return formatDistanceToNow(date, { addSuffix: true });
 };
 
 const howLongInTheFuture = (date) => {
   if (!date) return null;
-  const millisNow = Date.now();
-  const millisThen = date.getTime();
-  const difference = millisThen - millisNow;
-  return difference < 0
-    ? "in the past?" // ???
-    : difference < 2 * MIN
-      ? "now"
-      : difference < 5 * MIN
-        ? "in a few minutes"
-        : difference < 10 * MIN
-          ? "in five-ish minutes"
-          : difference < 20 * MIN
-            ? "in 15 minutes"
-            : difference < 30 * MIN
-              ? "in 20 minutes"
-              : difference < 45 * MIN
-                ? "in a half hour"
-                : difference < 60 * MIN
-                  ? "in 45 min"
-                  : difference < 80 * MIN
-                    ? "in just over an hour"
-                    : "in quite a while";
+  return formatDistanceToNow(date, { addSuffix: true });
 };
 
 const countPhrase = (count) => {
