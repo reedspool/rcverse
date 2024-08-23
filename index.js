@@ -915,9 +915,9 @@ async function updateCalendarFromRemote() {
   iCalendar = await ical.async.fromURL(
     `https://www.recurse.com/calendar/events.ics?token=${recurseCalendarToken}&omit_cancelled_events=1&scope=all`,
   );
+  clearTimeout(timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime);
   updateRoomsAsCalendarEventsChangeOverTime();
 
-  clearTimeout(timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime);
   setTimeout(updateCalendarFromRemote, 1000 * 60 * 30);
 }
 updateCalendarFromRemote();
