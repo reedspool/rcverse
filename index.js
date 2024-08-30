@@ -901,6 +901,9 @@ function cleanNotes() {
 //       (kinda like a form "Pairing on: Open invite: ?") We could do that, and
 //       we could store the default note (because it's different for pairing
 //       stations than for couches) in the SQL table next to the note ID
+// TODO: In order to re-enable cleaning notes, must use the bot process for
+//       updating the notes. Probably want to use one bot to clean multiple
+//       notes?
 // cleanNotes();
 
 // We only need to update from the remote rarely, since the calendar doesn't
