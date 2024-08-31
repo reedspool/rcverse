@@ -1404,6 +1404,7 @@ const DEFAULT_PERSONALIZATIONS = [
   "/personalizations/recurse-com__font-awesome.css",
   "/personalizations/recurse-com__cherry-picked.css",
   "/personalizations/recurse-com__header.html",
+  "/personalizations/icons.css",
   "/personalizations/rcverse-base-style.css",
   "/personalizations/register-service-worker.js",
   "/personalizations/confetti-once.html",

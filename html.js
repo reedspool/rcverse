@@ -130,7 +130,7 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
           )
           .join(",")},
       ];
-      navigator.serviceWorker.controller.postMessage({
+      navigator.serviceWorker?.controller?.postMessage({
         type: "update_personalizations",
         payload,
       });
@@ -351,7 +351,10 @@ export const Room = ({
         ${hasNowEvent
           ? html`
               <p class="room__event-now">
-                <a href="${nowEventCalendarUrl}" target="_blank"
+                <a
+                  class="room__event-calendar-link"
+                  href="${nowEventCalendarUrl}"
+                  target="_blank"
                   >${nowEventName}</a
                 >
                 started
@@ -367,7 +370,10 @@ export const Room = ({
         ${hasNextEvent
           ? html`
               <p class="room__event-next">
-                <a href="${nextEventCalendarUrl}" target="_blank"
+                <a
+                  class="room__event-calendar-link"
+                  href="${nextEventCalendarUrl}"
+                  target="_blank"
                   >${nextEventName}</a
                 >
                 starts
