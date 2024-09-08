@@ -710,16 +710,31 @@ app.ws("/websocket", async function (ws, req) {
       ),
     );
   };
+  const keepWsAliveListener = () => {
+    // TODO: How to send an empty message that doesn't conflict with HTMX?
+    ws.send("<div data-reason='empty-message-to-keepalive-websocket'></div>");
+  };
 
   emitter.on("room-change", roomListener);
   emitter.on("in-the-hub-change", inTheHubListener);
+  emitter.on("keep-ws-alive", keepWsAliveListener);
 
   // If client closes connection, stop sending events
   ws.on("close", () => {
     emitter.off("room-change", roomListener);
     emitter.off("in-the-hub-change", inTheHubListener);
+    emitter.off("keep-ws-alive", keepWsAliveListener);
   });
 });
+
+// After seeing reference to another service with a 60 second idle timeout for
+// websocket connections (https://stackoverflow.com/a/48764819), I thought I
+// might try the same solution and see if that fixed the issue despite this
+// being on a different stack.
+// TODO: Test and see if the websocket still closes after 55 seconds
+setInterval(() => {
+  emitter.emit("keep-ws-alive");
+}, 1000 * 30);
 
 const roomNameToNote = {};
 app.post(
@@ -799,7 +814,7 @@ app.post(
       });
 
       const botCreated = await apiResult.json();
-      console.log("Bot created with ID #" + botCreated.id);
+      // console.log("Bot created with ID #" + botCreated.id);
       if (!botCreated.id) {
         console.log("Bot creation failed somehow");
         console.log(apiResult.status);
