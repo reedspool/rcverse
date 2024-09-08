@@ -65,9 +65,11 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
   </html>
 `;
 
-export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
+export const RootBody = ({ roomListContent, personalizations, sort }) => {
   let body = "";
-  body += `<main hx-ext="ws" ws-connect="/websocket">`;
+  // Propogate settings back to the websocket connection which are not stored in
+  // a cookie or are otherwise stateless
+  body += `<main hx-ext="ws" ws-connect="/websocket?sort=${escapeHtml(sort ?? "")}" id="main">`;
   body += html`<h1>RCVerse</h1>`;
   body += useSnippet("./html/about.snippet.html");
   body += `<details>`;
@@ -141,10 +143,7 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
   </script>`;
   body += `</details>`;
   body += html`
-    <dl class="room-list">
-      ${WhoIsInTheHub(whoIsInTheHub)} ${rooms.map(Room).join("\n")}
-    </dl>
-
+    ${roomListContent}
     <hl />
     <p>You're logged in! - <a href="/logout">log out</a></p>
   `;
@@ -153,6 +152,12 @@ export const RootBody = ({ rooms, whoIsInTheHub, personalizations }) => {
 
   return body;
 };
+
+export const RoomList = ({ whoIsInTheHub, rooms }) => html`
+  <dl class="room-list" id="room-list">
+    ${WhoIsInTheHub(whoIsInTheHub)} ${rooms.map(Room).join("\n")}
+  </dl>
+`;
 
 export const JSInclude = ({ url }) => html`<script src="${url}"></script>`;
 export const CSSInclude = ({ url }) =>

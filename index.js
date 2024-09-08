@@ -23,6 +23,7 @@ import {
   Login,
   Personalization,
   escapeHtml,
+  RoomList,
 } from "./html.js";
 import expressWebsockets from "express-ws";
 import ical from "node-ical";
@@ -634,14 +635,18 @@ app.get(
         title: "RCVerse",
         body: RootBody(
           mungeRootBody({
-            zoomRooms,
-            roomNameToParticipantNames,
-            participantNameToEntity,
-            roomNameToNote,
-            myParticipantName: req.locals.rcPersonName,
-            inTheHubParticipantNames,
-            sortRooms,
-            locationToNowAndNextEvents,
+            roomListContent: RoomList(
+              mungeRoomList({
+                zoomRooms,
+                roomNameToParticipantNames,
+                participantNameToEntity,
+                roomNameToNote,
+                myParticipantName: req.locals.rcPersonName,
+                inTheHubParticipantNames,
+                sortRooms,
+                locationToNowAndNextEvents,
+              }),
+            ),
             personalizations,
           }),
         ),
@@ -682,6 +687,33 @@ app.ws("/websocket", async function (ws, req) {
   }
 
   await getRcUserMiddleware(req, { appendHeader: () => {} }, () => {});
+
+  let { sort } = req.query;
+
+  // `?sort=none` uses the default ordering instead of sort by count
+  // TODO: This logic is repeated from above, move into munge
+  const sortRooms = sort !== "none";
+
+  // TODO: Somehow distinguish between the first connection on page load and
+  //       a reconnection, and don't send this on the first connection
+  // TODO: Somehow distinguish if any messages were actually missed on reconnection
+  //       and only do this if any missed messages
+  // TODO: Add more complicated solution which replays chunks of missed messages
+  //       instead of refreshing so much of the page
+  ws.send(
+    RoomList(
+      mungeRoomList({
+        zoomRooms,
+        roomNameToParticipantNames,
+        participantNameToEntity,
+        roomNameToNote,
+        myParticipantName: req.locals.rcPersonName,
+        inTheHubParticipantNames,
+        sortRooms,
+        locationToNowAndNextEvents,
+      }),
+    ),
+  );
 
   // NOTE: Only use async listeners, so that each listener doesn't block.
   const roomListener = async (participantName, action, roomName) => {
@@ -1122,7 +1154,14 @@ app.post(
 
 // Data mungers take the craziness of the internal data structures
 // and make them peaceful and clean for the HTML generator
-const mungeRootBody = ({
+const mungeRootBody = ({ roomListContent, personalizations }) => {
+  return {
+    roomListContent,
+    personalizations,
+  };
+};
+
+const mungeRoomList = ({
   zoomRooms,
   roomNameToParticipantNames,
   participantNameToEntity,
@@ -1131,7 +1170,6 @@ const mungeRootBody = ({
   inTheHubParticipantNames,
   sortRooms,
   locationToNowAndNextEvents,
-  personalizations,
 }) => {
   const whoIsInTheHub = mungeWhoIsInTheHub({
     inTheHubParticipantNames,
@@ -1179,7 +1217,6 @@ const mungeRootBody = ({
   return {
     whoIsInTheHub,
     rooms,
-    personalizations,
   };
 };
 
