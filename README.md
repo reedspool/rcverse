@@ -1,6 +1,12 @@
-# RCVerse Oauth
+# RCVerse
 
 Forked from [Recurse OAuth example](https://github.com/reedspool/recurse-oauth-example-node-express)
+
+[RC Wiki page](https://github.com/recursecenter/wiki/wiki/RCVerse)
+
+[Uses the RC API](https://github.com/recursecenter/wiki/wiki/Recurse-Center-API)
+
+[Doesn't do calendar stuff like RSVP Bot](https://github.com/recursecenter/RSVPBot?tab=readme-ov-file#developing-without-api-access)
 
 ## Setup Your Local Development Environment
 
