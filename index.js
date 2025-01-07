@@ -1409,7 +1409,7 @@ app.use(function (req, res) {
   res.send("404");
 });
 
-const listener = app.listen(port, () => {
+const listener = app.listen(port, "::", () => {
   console.log(`Server is available at ${baseURL}`);
 });
 
