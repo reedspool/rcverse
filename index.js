@@ -962,9 +962,14 @@ function cleanNotes() {
 let locationToNowAndNextEvents = {};
 let iCalendar = {};
 async function updateCalendarFromRemote() {
-  iCalendar = await ical.async.fromURL(
-    `https://www.recurse.com/calendar/events.ics?token=${recurseCalendarToken}&omit_cancelled_events=1&scope=all`,
-  );
+  try {
+    iCalendar = await ical.async.fromURL(
+      `https://www.recurse.com/calendar/events.ics?token=${recurseCalendarToken}&omit_cancelled_events=1&scope=all`,
+    );
+  } catch (error) {
+    console.error("Failed to fetch calendar ICS, will try again. Error:");
+    console.error(error);
+  }
   clearTimeout(timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime);
   updateRoomsAsCalendarEventsChangeOverTime();
 
@@ -1038,6 +1043,8 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
     emitter.emit("room-change", "events", "changed for", roomName);
   });
 
+  // This isn't necessary right now, but possible source of a confusing bug
+  clearTimeout(timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime);
   timeoutIdForUpdateRoomsAsCalendarEventsChangeOverTime = setTimeout(
     updateRoomsAsCalendarEventsChangeOverTime,
     calendarUpdateDelay,
