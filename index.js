@@ -993,19 +993,21 @@ function updateRoomsAsCalendarEventsChangeOverTime() {
   soonish.setTime(soonish.getTime() + 1000 * 60 * 80); // 80 minutes
   const locationToEvents = {};
   Object.entries(iCalendar).forEach(([_, event]) => {
-    const { location, start, end } = event;
+    const { start, end } = event;
+    const zoomLocation = event?.conference?.val;
+
     let keep = true;
     keep &&= event.type === "VEVENT";
-    keep &&= location in zoomRoomsByLocation;
+    keep &&= zoomLocation && zoomLocation in zoomRoomsByLocation;
     keep &&= start >= yesterday; // Started less than 24 hours ago
     keep &&= end <= tomorrow; // Ends less than 24 hours from now
     keep &&= now <= end; // Hasn't ended yet
     if (!keep) return;
 
-    if (!locationToEvents[location]) {
-      locationToEvents[location] = [];
+    if (!locationToEvents[zoomLocation]) {
+      locationToEvents[zoomLocation] = [];
     }
-    locationToEvents[location].push(event);
+    locationToEvents[zoomLocation].push(event);
   });
 
   // Before we drop the old events object, record which rooms had an event
