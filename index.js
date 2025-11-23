@@ -28,7 +28,8 @@ import {
 import expressWebsockets from "express-ws";
 import ical from "node-ical";
 import fs from "node:fs";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import { TZDate } from "@date-fns/tz";
 
 // Prepare Markdown renderer to force links to always target="_blank"
 const renderer = {
@@ -511,6 +512,8 @@ const updateWhoIsAtTheHubMiddleware = async (req, res, next) => {
   );
 
   const json = await fetchResponse.json();
+  console.log("Response from hub visits update:");
+  console.log(JSON.stringify(json));
   Object.keys(participantNameToEntity).forEach((participantName) => {
     participantNameToEntity[participantName].inTheHub = false;
   });
@@ -1438,10 +1441,8 @@ process.on("SIGINT", () => {
 // }
 
 const getTodayDateForHubVisitsAPI = () => {
-  let date = new Date();
-  date = date.toISOString();
-  // Format date as `yyyy-mm-dd`
-  const formatted = date.slice(0, date.indexOf("T"));
+  const date = TZDate.tz("America/New_York");
+  const formatted = format(date, "yyyy-MM-dd");
 
   console.log(
     `Hitting Hub Visits API with date ${date} formatted as ${formatted}`,
