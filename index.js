@@ -1441,7 +1441,12 @@ const getTodayDateForHubVisitsAPI = () => {
   let date = new Date();
   date = date.toISOString();
   // Format date as `yyyy-mm-dd`
-  return date.slice(0, date.indexOf("T"));
+  const formatted = date.slice(0, date.indexOf("T"));
+
+  console.log(
+    `Hitting Hub Visits API with date ${date} formatted as ${formatted}`,
+  );
+  return formatted;
 };
 
 // Minutes in milliseconds
