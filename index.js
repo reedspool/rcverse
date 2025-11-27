@@ -120,9 +120,6 @@ const actionCableAppSecret = process.env.ACTION_CABLE_APP_SECRET;
 // Special auth token (primarily for RCTV)
 const secretAuthToken = process.env.SPECIAL_SECRET_AUTH_TOKEN_DONT_SHARE;
 
-// Mixpanel
-const mixpanelToken = process.env.MIXPANEL_TOKEN;
-
 // Recurse.com Calendar
 const recurseCalendarToken = process.env.RECURSE_CALENDAR_TOKEN;
 
@@ -473,7 +470,6 @@ const hxBlockIfNotAuthenticated = async (req, res, next) => {
     Page({
       title: "RCVerse",
       body: Login({}),
-      mixpanelToken,
       myRcUserId: req.locals.rcUserId,
     }),
   );
@@ -653,7 +649,6 @@ app.get(
             personalizations,
           }),
         ),
-        mixpanelToken,
         myRcUserId: req.locals.rcUserId,
       }),
     );
@@ -669,7 +664,6 @@ app.get("/login", async (req, res) => {
     Page({
       title: "RCVerse",
       body: Login(mungeLogin({ reason })),
-      mixpanelToken,
       myRcUserId: req.locals.rcUserId,
     }),
   );
@@ -1096,7 +1090,6 @@ app.get(
             defaultPersonalizations: DEFAULT_PERSONALIZATIONS,
           }),
         ),
-        mixpanelToken,
         myRcUserId: req.locals.rcUserId,
       }),
     );

@@ -19,7 +19,7 @@ const useSnippet = (path) => {
 };
 
 // Generic complete HTML page
-export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
+export const Page = ({ body, title, myRcUserId }) => html`
   <!doctype html>
   <html lang="en">
     <head>
@@ -27,29 +27,6 @@ export const Page = ({ body, title, mixpanelToken, myRcUserId }) => html`
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <link rel="shortcut icon" type="image/png" href="favicon.ico" />
-      ${
-        ""
-        /* Mixpanel insert from https://docs.mixpanel.com/docs/quickstart/connect-your-data?sdk=javascript */
-        /* NOTE: Had to double escape forward slashes, i.e. replace "\/" with "\\/" */
-      }
-      ${useSnippet("./html/mixpanel.snippet.html")}
-      <script type="module">
-        // import mixpanel from 'mixpanel-browser'; // This is a global from mixpanel script snippet
-        mixpanel.init("${mixpanelToken}", {
-          debug: true,
-          track_pageview: true,
-          persistence: "localStorage",
-        });
-        // Set this to a unique identifier for the user performing the event.
-        const userId = "${myRcUserId || ""}";
-        if (document.referrer.match("rctv.recurse.com")) {
-          mixpanel.identify("rctv");
-        } else if (userId) {
-          mixpanel.identify(userId);
-        } else {
-          mixpanel.reset();
-        }
-      </script>
     </head>
     <body>
       <script
