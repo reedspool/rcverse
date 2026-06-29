@@ -1259,7 +1259,7 @@ const mungeRoom = ({
         roomLocation
       ]?.now?.[0]?.start?.toISOString() ?? null,
     nowEventCalendarUrl:
-      locationToNowAndNextEvents[roomLocation]?.now?.[0]?.url,
+      locationToNowAndNextEvents[roomLocation]?.now?.[0]?.url?.val,
     hasNextEvent: locationToNowAndNextEvents[roomLocation]?.next?.[0],
     nextEventName: locationToNowAndNextEvents[roomLocation]?.next?.[0]?.summary,
     nextEventStartsInHowLong: howLongInTheFuture(
@@ -1270,7 +1270,7 @@ const mungeRoom = ({
         roomLocation
       ]?.next?.[0]?.start?.toISOString() ?? null,
     nextEventCalendarUrl:
-      locationToNowAndNextEvents[roomLocation]?.next?.[0]?.url,
+      locationToNowAndNextEvents[roomLocation]?.next?.[0]?.url?.val,
   };
 };
 
