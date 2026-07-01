@@ -20,6 +20,15 @@ To get your Client ID and Client Secret, go to <https://recurse.com/settings/app
 
 Then make a copy of `config.env.template` named `config.env` and fill in the secrets there. For PostgreSQL, see the Neon section below.
 
+You'll also need to generate SSL stuff:
+
+```sh
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
+mkdir -p cert
+cp key.pem ./cert/server.key
+cp cert.pem ./cert/server.cert
+```
+
 Once you've done the above steps, you can start your local dev environment.
 
 ## Run Local Development Environment
