@@ -92,16 +92,6 @@ const baseURL =
     ? `https://${baseDomain}`
     : `http://${baseDomain}`;
 
-// Currently unused self-signed SSL certs. Use `npm run generate-cert` to create
-// these files
-const sslConfig =
-  process.env.NODE_ENV === "production"
-    ? {}
-    : {
-        key: fs.readFileSync(`./cert/server.key`),
-        cert: fs.readFileSync(`./cert/server.cert`),
-      };
-
 const authorizeEndpoint = "https://recurse.com/oauth/authorize";
 // TODO P.B. found this required `www` though authorize doesn't.
 const tokenEndpoint = "https://www.recurse.com/oauth/token";

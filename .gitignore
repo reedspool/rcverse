@@ -12,4 +12,3 @@ yarn-error.log*
 .npm
 .eslintcache
 *.env
-cert/
