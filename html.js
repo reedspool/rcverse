@@ -304,10 +304,11 @@ export const Room = ({
   nextEventStartsInHowLong,
   nextEventCalendarUrl,
   nextEventDateTime,
+  visibility,
 }) => html`
   <section
     id="room-update-${roomName.replaceAll(" ", "-")}"
-    class="display-contents"
+    class="display-contents room--visibility-${visibility ?? "invisible"}"
   >
     <div class="room ${isEmpty ? "room--non-empty" : ""}">
       <dt class="room__header">

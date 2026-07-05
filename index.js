@@ -130,20 +130,14 @@ const zoomRoomsResult = await sql.query(
 
 const zoomRooms = [];
 
-// Zoom Rooms that are reported but that we purposely don't track
-const silentZoomRooms = [];
-
 zoomRoomsResult.rows.forEach(
   ({ room_name, location, visibility, note_block_rctogether_id }) => {
-    if (visibility == "visible") {
-      zoomRooms.push({
-        roomName: room_name,
-        location,
-        noteBlockRCTogetherId: note_block_rctogether_id,
-      });
-    } else {
-      silentZoomRooms.push(room_name);
-    }
+    zoomRooms.push({
+      roomName: room_name,
+      location,
+      noteBlockRCTogetherId: note_block_rctogether_id,
+      visibility,
+    });
   },
 );
 
@@ -174,9 +168,7 @@ emitter.on("participant-room-data", async (entity) => {
     entity;
 
   if (roomName !== null && !zoomRoomNames.includes(roomName)) {
-    if (!silentZoomRooms.includes(roomName)) {
-      console.error(`Surprising zoom room name '${roomName}'`);
-    }
+    console.error(`Surprising zoom room name '${roomName}'`);
     return;
   }
 
@@ -709,6 +701,7 @@ app.ws("/websocket", async function (ws, req) {
         mungeRoom({
           roomName,
           roomLocation: zoomRoomsByName[roomName].location,
+          visibility: zoomRoomsByName[roomName].visibility,
           roomNameToNote,
           roomNameToParticipantNames,
           participantNameToEntity,
@@ -1175,6 +1168,7 @@ const mungeRoomList = ({
     mungeRoom({
       roomName,
       roomLocation: zoomRoomsByName[roomName].location,
+      visibility: zoomRoomsByName[roomName].visibility,
       roomNameToNote,
       roomNameToParticipantNames,
       participantNameToEntity,
@@ -1222,10 +1216,12 @@ const mungeRoom = ({
   roomNameToParticipantNames,
   participantNameToEntity,
   locationToNowAndNextEvents,
+  visibility,
 }) => {
   return {
     roomName,
     roomLocation,
+    visibility,
     hasNote: Boolean(roomNameToNote[roomName]),
     noteContent: roomNameToNote[roomName]?.content
       ? marked.parse(escapeHtml(roomNameToNote[roomName]?.content ?? ""))
@@ -1459,6 +1455,7 @@ const DEFAULT_PERSONALIZATIONS = [
   "/personalizations/register-service-worker.js",
   "/personalizations/confetti-once.html",
   "/personalizations/hannahs-colorful-rooms.css",
+  "/personalizations/show-all-rooms.js",
   "/personalizations/show-fouc.css",
 ].map((url) => {
   return { url, cache: true };
