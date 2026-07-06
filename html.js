@@ -297,6 +297,7 @@ export const Room = ({
   hasNowEvent,
   nowEventName,
   nowEventStartedHowManyMinutesAgo,
+  nowEventIsInFuture,
   nowEventCalendarUrl,
   nowEventDateTime,
   hasNextEvent,
@@ -340,7 +341,7 @@ export const Room = ({
                   target="_blank"
                   >${nowEventName}</a
                 >
-                started
+                ${nowEventIsInFuture ? "starts" : "started"}
                 <time
                   datetime="${nowEventDateTime}"
                   title="${nowEventDateTime} UTC"

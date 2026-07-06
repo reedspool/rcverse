@@ -28,7 +28,7 @@ import {
 import expressWebsockets from "express-ws";
 import ical from "node-ical";
 import fs from "node:fs";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, compareAsc } from "date-fns";
 import { TZDate } from "@date-fns/tz";
 
 // Prepare Markdown renderer to force links to always target="_blank"
@@ -1240,6 +1240,9 @@ const mungeRoom = ({
     nowEventStartedHowManyMinutesAgo: howManyMinutesAgo(
       locationToNowAndNextEvents[roomLocation]?.now?.[0]?.start,
     ),
+    nowEventIsInFuture: isInFuture(
+      locationToNowAndNextEvents[roomLocation]?.now?.[0]?.start,
+    ),
     nowEventDateTime:
       locationToNowAndNextEvents[
         roomLocation
@@ -1443,6 +1446,12 @@ const howLongInTheFuture = (date) => {
 
 const countPhrase = (count) => {
   return count === 0 ? "" : count === 1 ? "1 person" : `${count} people`;
+};
+
+const isInFuture = (date) => {
+  if (!date) return false;
+
+  return compareAsc(Date.now(), date) === -1;
 };
 
 const DEFAULT_PERSONALIZATIONS = [
