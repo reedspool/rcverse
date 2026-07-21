@@ -157,7 +157,7 @@ zoomRooms.forEach(({ location, ...rest }) => {
 //  a zoom room did not appear in virtual RC (or this app) as in that zoom room.
 //  Question: Does that participant count also reflect that person NOT in the room?
 //     I'm guessing it will not show the person in the room, because we also observed
-//     the little bubble in Virutal RC didn't show that person as in the room
+//     the little bubble in Virtual RC didn't show that person as in the room
 emitter.on("participant-room-data-reset", async () => {
   inTheHubParticipantNames = [];
   roomNameToParticipantNames = {};
@@ -217,6 +217,12 @@ emitter.on("participant-room-data", async (entity) => {
       roomNameToParticipantNames[previousRoomName] = roomNameToParticipantNames[
         previousRoomName
       ].filter((name) => name !== participantName);
+      emitter.emit(
+        "room-change",
+        participantName,
+        "switched from",
+        previousRoomName,
+      );
     }
 
     if (!roomNameToParticipantNames[roomName]) {
